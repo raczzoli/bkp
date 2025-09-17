@@ -134,9 +134,6 @@ static int add_tree_entry(struct tree *tree, struct tree_entry *entry)
 		fprintf(stderr, "Error allocating memory for tree entries!\n");
 		return -ENOMEM;
 	}
-	char plm[40+1];
-	sha1_to_hex(entry->sha1_ref, plm);	
-	printf("?? %s -- %s\n", entry->name, plm);
 
 	tree->entries[tree->entries_len++] = entry;
 	//printf("Adding entry: %s (%d) to tree (%d children)...\n", entry->name, entry->name_len, tree->entries_len);	
