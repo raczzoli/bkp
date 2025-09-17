@@ -24,4 +24,6 @@ typedef struct tree {
 	int entries_len;
 } tree_t;
 
+int scan_tree(char *path, unsigned char *sha1);
+
 #endif 
