@@ -2,6 +2,7 @@
 #define TREE_H
 
 #include <stdint.h>
+#include <openssl/sha.h>
 #include "bkp.h"
 
 enum tree_entry_type {
@@ -15,6 +16,7 @@ struct tree_entry {
 	int st_mode;
 	char name[FILENAME_MAX];
 	int name_len;
+	unsigned char sha1_ref[SHA_DIGEST_LENGTH];
 };
 
 typedef struct tree {
