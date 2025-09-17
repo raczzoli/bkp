@@ -60,6 +60,7 @@ int scan_tree(char *path, unsigned char *sha1)
 			strcat(full_path, "/");
 
 			ret = scan_tree(full_path, entry->sha1_ref);
+
 			if (ret)
 				goto free_entry;
 		} 
@@ -92,7 +93,8 @@ static int write_tree(struct tree *tree, unsigned char *sha1)
 {
 	int ret = 0;
 	struct tree_entry *entry;
-	char *buffer = malloc(4096 * 2);
+	int size = 100 + (sizeof(struct tree_entry) * tree->entries_len);
+	char *buffer = malloc(size); 
 	int offset = 0;
 	
 	if (!buffer) {
@@ -108,8 +110,8 @@ static int write_tree(struct tree *tree, unsigned char *sha1)
 		offset += sprintf(buffer+offset, "%d|%s", entry->st_mode, entry->name);
 		offset += 1; // we want to keep the \0
 
-		// TODO
-		// copy 20 byte hash
+		memcpy(buffer+offset, entry->sha1_ref, SHA_DIGEST_LENGTH);
+		offset += SHA_DIGEST_LENGTH; 
 	}
 
 	SHA1((const unsigned char *)buffer, offset, sha1);	
@@ -132,6 +134,9 @@ static int add_tree_entry(struct tree *tree, struct tree_entry *entry)
 		fprintf(stderr, "Error allocating memory for tree entries!\n");
 		return -ENOMEM;
 	}
+	char plm[40+1];
+	sha1_to_hex(entry->sha1_ref, plm);	
+	printf("?? %s -- %s\n", entry->name, plm);
 
 	tree->entries[tree->entries_len++] = entry;
 	//printf("Adding entry: %s (%d) to tree (%d children)...\n", entry->name, entry->name_len, tree->entries_len);	
