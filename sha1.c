@@ -9,7 +9,7 @@
 
 #include "sha1.h"
 
-static int sha1_to_hex(unsigned char *sha1, char* out_hex)
+int sha1_to_hex(unsigned char *sha1, char* out_hex)
 {
 	if (!out_hex)
 		return -1;
