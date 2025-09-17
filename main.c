@@ -10,19 +10,32 @@
 #include "tree.h"
 #include "sha1.h"
 
-int scan_tree(char *path);
+int scan_tree(char *path, unsigned char *sha1);
 static int add_tree_entry(struct tree *tree, struct tree_entry *entry);
-static int write_tree(struct tree *tree);
+static int write_tree(struct tree *tree, unsigned char *sha1);
 static void free_tree_entries(struct tree *tree);
 
 int main()
 {
-	scan_tree("./test-data/");
+	int ret = 0;
+	unsigned char sha1[SHA_DIGEST_LENGTH];
+	char sha1_hex[40+1];
+
+	ret = scan_tree("./test-data/", sha1);
+
+	if (ret) {
+		fprintf(stderr, "Error generating tree!\n");
+		return -1;
+	}
+
+	sha1_to_hex(sha1, sha1_hex);
+
+	printf("Tree sha1: %s\n", sha1_hex);
 
 	return 0;
 }
 
-int scan_tree(char *path)
+int scan_tree(char *path, unsigned char *sha1)
 {
 	DIR *dirp = opendir(path);
 	struct dirent *dirent = NULL;
@@ -66,7 +79,7 @@ int scan_tree(char *path)
 			entry->type = ENTRY_TYPE_DIR;
 			strcat(full_path, "/");
 
-			ret = scan_tree(full_path);
+			ret = scan_tree(full_path, entry->sha1_ref);
 			if (ret)
 				goto free_entry;
 		} 
@@ -80,7 +93,7 @@ int scan_tree(char *path)
 			goto free_entry;
 	}
 
-	ret = write_tree(&tree);
+	ret = write_tree(&tree, sha1);
 
 	goto end;
 
@@ -95,13 +108,12 @@ end:
 	return ret;
 }
 
-static int write_tree(struct tree *tree)
+static int write_tree(struct tree *tree, unsigned char *sha1)
 {
 	int ret = 0;
 	struct tree_entry *entry;
 	char *buffer = malloc(4096 * 2);
 	int offset = 0;
-	unsigned char sha1[SHA_DIGEST_LENGTH];
 	
 	if (!buffer) {
 		fprintf(stderr, "Error allocating memory for tree buffer!\n");
