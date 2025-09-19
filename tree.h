@@ -16,7 +16,7 @@ struct tree_entry {
 	int st_mode;
 	char name[FILENAME_MAX];
 	int name_len;
-	unsigned char sha1_ref[SHA_DIGEST_LENGTH];
+	unsigned char sha1[SHA_DIGEST_LENGTH];
 };
 
 typedef struct tree {

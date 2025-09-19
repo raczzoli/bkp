@@ -72,13 +72,14 @@ static int scan_tree(char *path, struct cache *cache, unsigned char *sha1)
 			goto end;
 		}
 
+		memset(entry->sha1, 0, SHA_DIGEST_LENGTH);
 		strncpy(entry->name, dirent->d_name, FILENAME_MAX);
 		entry->name_len = strlen(dirent->d_name);
 		entry->st_mode = sb.st_mode;
 
 		if (S_ISDIR(sb.st_mode)) {
 			strcat(full_path, "/");
-			ret = scan_tree(full_path, cache, entry->sha1_ref);
+			ret = scan_tree(full_path, cache, entry->sha1);
 			if (ret)
 				goto end;
 		} 
@@ -153,7 +154,7 @@ static int write_tree(struct tree *tree, unsigned char *sha1)
 		offset += sprintf(buffer+offset, "%d|%s", entry->st_mode, entry->name);
 		offset += 1; // we want to keep the \0
 
-		memcpy(buffer+offset, entry->sha1_ref, SHA_DIGEST_LENGTH);
+		memcpy(buffer+offset, entry->sha1, SHA_DIGEST_LENGTH);
 		offset += SHA_DIGEST_LENGTH; 
 	}
 
