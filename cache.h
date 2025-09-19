@@ -12,7 +12,7 @@ struct cache_entry {
 	struct timespec st_mtim;
 	struct timespec st_ctim;
 	int path_len;
-	char path[PATH_MAX];
+	char path[0];
 };
 
 struct cache {

@@ -36,7 +36,6 @@ static int scan_tree(char *path, struct cache *cache, unsigned char *sha1)
 	struct stat sb;
 	int ret = 0;
 	char full_path[PATH_MAX];
-	char path_len = 0;
 
 	struct cache_entry *c_entry = NULL;
 	struct tree tree;
@@ -89,6 +88,7 @@ static int scan_tree(char *path, struct cache *cache, unsigned char *sha1)
 				goto end;
 		} 
 		else if (S_ISREG(sb.st_mode)) {
+			int path_len = strlen(full_path);
 			int c_idx = find_cache_entry(cache, full_path);
 			if (c_idx > -1) {
 				c_entry = cache->entries[c_idx];
@@ -99,7 +99,7 @@ static int scan_tree(char *path, struct cache *cache, unsigned char *sha1)
 				}
 			}
 			else {
-				c_entry = malloc(sizeof(struct cache_entry));
+				c_entry = malloc(sizeof(struct cache_entry) + path_len + 1);
 				if (!c_entry) {
 					ret = -ENOMEM;
 					fprintf(stderr, "Error allocating memory for cache entry!\n");
@@ -112,7 +112,7 @@ static int scan_tree(char *path, struct cache *cache, unsigned char *sha1)
 				c_entry->st_mtim = sb.st_mtim;
 				c_entry->st_ctim = sb.st_ctim;
 				c_entry->path_len = strlen(full_path);
-				strncpy(c_entry->path, full_path, path_len);
+				strncpy(c_entry->path, full_path, c_entry->path_len);
 
 				add_cache_entry(cache, c_entry);
 			}
