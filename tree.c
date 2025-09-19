@@ -66,22 +66,17 @@ static int scan_tree(char *path, struct cache *cache, unsigned char *sha1)
 		if (!S_ISDIR(sb.st_mode) && !S_ISREG(sb.st_mode))
 			continue;
 
+		entry = malloc(sizeof(struct tree_entry));
+		if (!entry) {
+			fprintf(stderr, "Error allocating memory for tree entry!\n");
+			goto end;
+		}
+
+		strncpy(entry->name, dirent->d_name, FILENAME_MAX);
+		entry->name_len = strlen(dirent->d_name);
+		entry->st_mode = sb.st_mode;
+
 		if (S_ISDIR(sb.st_mode)) {
-			entry = malloc(sizeof(struct tree_entry));
-			if (!entry) {
-				fprintf(stderr, "Error allocating memory for tree entry!\n");
-				goto end;
-			}
-
-			strncpy(entry->name, dirent->d_name, FILENAME_MAX);
-			entry->name_len = strlen(dirent->d_name);
-			entry->st_mode = sb.st_mode;
-
-			ret = add_tree_entry(&tree, entry);
-			if (ret) 
-				goto end;
-
-
 			strcat(full_path, "/");
 			ret = scan_tree(full_path, cache, entry->sha1_ref);
 			if (ret)
@@ -116,9 +111,11 @@ static int scan_tree(char *path, struct cache *cache, unsigned char *sha1)
 
 				add_cache_entry(cache, c_entry);
 			}
-
 		}
 	
+		ret = add_tree_entry(&tree, entry);
+		if (ret) 
+			goto end;
 	}
 
 	ret = write_tree(&tree, sha1);
