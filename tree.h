@@ -14,9 +14,9 @@ enum tree_entry_type {
 struct tree_entry {
 	uint8_t type;
 	int st_mode;
-	char name[FILENAME_MAX];
-	int name_len;
 	unsigned char sha1[SHA_DIGEST_LENGTH];
+	int name_len;
+	char name[0];
 };
 
 typedef struct tree {

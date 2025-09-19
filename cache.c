@@ -33,7 +33,7 @@ int find_cache_entry(struct cache *cache, char *path)
         int mid = low + (high - low) / 2; 
         int cmp = strcmp(cache->entries[mid]->path, path);
         if (cmp == 0) {
-			printf("Number of iterations: %d\n", num_iter);
+			//printf("Number of iterations: %d\n", num_iter);
             return mid;
 		}
         else if (cmp < 0)
