@@ -6,22 +6,39 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <openssl/sha.h>
+#include <stdbool.h>
 
 #include "tree.h"
+#include "cache.h"
 #include "sha1.h"
 
+static int scan_tree(char *path, struct cache *cache, unsigned char *sha1);
 static int add_tree_entry(struct tree *tree, struct tree_entry *entry);
 static int write_tree(struct tree *tree, unsigned char *sha1);
 static void free_tree_entries(struct tree *tree);
 
+int gen_tree(char *path, unsigned char *sha1)
+{
+	int ret = 0;
+	struct cache *cache = load_cache();
 
-int scan_tree(char *path, unsigned char *sha1)
+	ret = scan_tree(path, cache, sha1);
+
+	printf("Cache updated, number of entries: %d\n", cache->entries_len);
+
+	return ret;
+}
+
+static int scan_tree(char *path, struct cache *cache, unsigned char *sha1)
 {
 	DIR *dirp = opendir(path);
 	struct dirent *dirent = NULL;
 	struct stat sb;
 	int ret = 0;
 	char full_path[PATH_MAX];
+	char path_len = 0;
+
+	struct cache_entry *c_entry = NULL;
 	struct tree tree;
 	struct tree_entry *entry;
 	
@@ -34,7 +51,9 @@ int scan_tree(char *path, unsigned char *sha1)
 	tree.entries_len = 0;
 
 	while ((dirent = readdir(dirp)) != NULL) {
-		if (strcmp(dirent->d_name, ".") == 0 || strcmp(dirent->d_name, "..") == 0)
+		if (strcmp(dirent->d_name, ".") == 0 || 
+			strcmp(dirent->d_name, "..") == 0 ||
+			strcmp(dirent->d_name, ".bkp-data") == 0)
 			continue;
 		
 		snprintf(full_path, PATH_MAX, "%s%s", path, dirent->d_name);
@@ -42,13 +61,16 @@ int scan_tree(char *path, unsigned char *sha1)
 		ret = lstat(full_path, &sb);
 		if (ret) {
 			printf("Error calling stat on: %s\n", full_path);
-			goto free_entry;
+			goto end;
 		}
- 
+
+		if (!S_ISDIR(sb.st_mode) && !S_ISREG(sb.st_mode))
+			continue;
+
 		entry = malloc(sizeof(struct tree_entry));
 		if (!entry) {
 			fprintf(stderr, "Error allocating memory for tree entry!\n");
-			goto free_entry;
+			goto end;
 		}
 
 		strncpy(entry->name, dirent->d_name, FILENAME_MAX);
@@ -56,32 +78,55 @@ int scan_tree(char *path, unsigned char *sha1)
 		entry->st_mode = sb.st_mode;
 
 		if (S_ISDIR(sb.st_mode)) {
-			entry->type = ENTRY_TYPE_DIR;
 			strcat(full_path, "/");
-
-			ret = scan_tree(full_path, entry->sha1_ref);
-
+			ret = scan_tree(full_path, cache, entry->sha1_ref);
 			if (ret)
-				goto free_entry;
+				goto end;
 		} 
 		else if (S_ISREG(sb.st_mode)) {
-			entry->type = ENTRY_TYPE_FILE;
+			int c_idx = find_cache_entry(cache, full_path);
+			if (c_idx > -1) {
+				c_entry = cache->entries[c_idx];
+				
+				bool changed = cache_entry_changed(c_entry, &sb);
+				if (changed) {
+					// TODO update cache entry
+				}
+			}
+			else {
+				c_entry = malloc(sizeof(struct cache_entry));
+				if (!c_entry) {
+					ret = -ENOMEM;
+					fprintf(stderr, "Error allocating memory for cache entry!\n");
+
+					goto end;
+				}
+
+				c_entry->st_mode = sb.st_mode;
+				c_entry->st_size = sb.st_size;
+				c_entry->st_mtim = sb.st_mtim;
+				c_entry->st_ctim = sb.st_ctim;
+				c_entry->path_len = strlen(full_path);
+				strncpy(c_entry->path, full_path, path_len);
+
+				add_cache_entry(cache, c_entry);
+			}
+
 		}
 	
 		ret = add_tree_entry(&tree, entry);
 
 		if (ret) 
-			goto free_entry;
+			goto end;
 	}
 
 	ret = write_tree(&tree, sha1);
 
 	goto end;
 
-free_entry:
-	if (entry)
-		free(entry);
-	
+/*
+ * TODO - free entry and c_entry
+ */
 end:
 	free_tree_entries(&tree);
 
