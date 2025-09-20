@@ -13,11 +13,14 @@
 
 #include "cache.h"
 
+static void free_cache(struct cache *cache);
+
 struct cache *load_cache()
 {
 	int fd = 0, bytes = 0;
 	struct cache *cache = malloc(sizeof(struct cache));
 	struct cache_entry header;
+	struct cache_entry *c = NULL;
 
 	if (!cache) {
 		fprintf(stderr, "Error allocating memory for cache!\n");
@@ -28,37 +31,43 @@ struct cache *load_cache()
 	cache->entries_len = 0;
 
 	fd = open(".bkp-data/filecache", O_RDONLY);	
-	if (fd >= 0) 
-		while (true) {
-			bytes = read(fd, &header, sizeof(struct cache_entry));
-			if (bytes <= 0)
-				break;		
-
-			struct cache_entry *c = malloc(sizeof(struct cache_entry) + header.path_len + 1);
-			if (!c) {
-				fprintf(stderr, "Error allocating memory for cache entry!\n");
-				goto err;
-			}
+	if (fd < 0) 
+		goto end; // not an error, it just doesn`t exist yet
 			
-			memcpy(c, &header, sizeof(struct cache_entry));
-			memset(c->path, 0, header.path_len + 1);
+	while (true) {
+		bytes = read(fd, &header, sizeof(struct cache_entry));
+		if (bytes <= 0)
+			break;		
 
-			bytes = read(fd, c->path, header.path_len + 1); // read the \0 too
-			// TODO - some error check here too
-	
-			printf("path_len: %d\n", c->path_len);
-			printf("path: %s\n", c->path);	
-
-			add_cache_entry(cache, c);
+		c = malloc(sizeof(struct cache_entry) + header.path_len + 1);
+		if (!c) {
+			fprintf(stderr, "Error allocating memory for cache entry!\n");
+			goto err;
 		}
+		
+		memcpy(c, &header, sizeof(struct cache_entry));
+		memset(c->path, 0, header.path_len + 1);
+
+		bytes = read(fd, c->path, header.path_len + 1); // read the \0 too
+		// TODO - some error check here too
+
+		add_cache_entry(cache, c, 0);
+	}
 
 	goto end;
 
-err:
-	free(cache);
-	cache = NULL;
+err: 
+	if (c) {
+		free(c);
+		c = NULL;
+	}
+
+	free_cache(cache);
 
 end:
+	if (fd >= 0)
+		close(fd);
+
 	return cache;
 }
 
@@ -74,6 +83,7 @@ int update_cache(struct cache *cache)
 
 	if (cache->entries_len > 0) {
 		for (int i=0;i<cache->entries_len;i++) {
+			//printf("%s\n", cache->entries[i]->path);
 			struct cache_entry *c = cache->entries[i];
 			
 			write(fd, c, sizeof(struct cache_entry));
@@ -87,7 +97,12 @@ int update_cache(struct cache *cache)
 	return 0;
 }
 
-int find_cache_entry(struct cache *cache, char *path)
+int find_cache_entry_insert_idx(struct cache *cache, char *path)
+{
+	return find_cache_entry(cache, path, true);
+}
+
+int find_cache_entry(struct cache *cache, char *path, int ret_insert_idx)
 {
 	int num_iter = 0;
 	int low = 0, high = cache->entries_len - 1;
@@ -106,8 +121,7 @@ int find_cache_entry(struct cache *cache, char *path)
 		num_iter++;
     }
 
-
-	return -1;
+	return ret_insert_idx ? low : -1;
 }
 
 bool cache_entry_changed(struct cache_entry *entry, struct stat *stat)
@@ -123,7 +137,7 @@ bool cache_entry_changed(struct cache_entry *entry, struct stat *stat)
 	return false;
 }
 
-int add_cache_entry(struct cache *cache, struct cache_entry *entry)
+int add_cache_entry(struct cache *cache, struct cache_entry *entry, int do_sort)
 {
 	if (!cache->entries) {
 		cache->entries = calloc(100, sizeof(struct cache_entry *));
@@ -138,10 +152,29 @@ int add_cache_entry(struct cache *cache, struct cache_entry *entry)
 		return -ENOMEM;
 	}
 
-	cache->entries[cache->entries_len] = entry;
+	int idx = do_sort > 0
+				? find_cache_entry_insert_idx(cache, entry->path)
+				: cache->entries_len;
+	
+	if (cache->entries_len > idx) 
+		memmove(&cache->entries[idx+1], &cache->entries[idx], (cache->entries_len - idx) * sizeof(struct cache_entry *));	
+	 
+	cache->entries[idx] = entry;
 	cache->entries_len++;
 
 	return 0;
 }
 
+static void free_cache(struct cache *cache)
+{
+	if (!cache)
+		return;
 
+	if (cache->entries_len > 0)
+		for (int i=0;i<cache->entries_len;i++) {
+			free(cache->entries[i]);
+			cache->entries[i] = NULL;
+		}
+
+	free(cache);
+}
