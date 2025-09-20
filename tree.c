@@ -25,6 +25,14 @@ int gen_tree(char *path, unsigned char *sha1)
 	ret = scan_tree(path, cache, sha1);
 
 	printf("Cache updated, number of entries: %d\n", cache->entries_len);
+	
+	/*
+	 * TODO - This update, or maybe the whole gen_tree should be 
+	 * placed somewhere else. Maybe a separate snapshot.c or backup.c
+	 * where we call load_cache(), scan_tree() and if successful
+	 * update_cache()
+	 */
+	update_cache(cache);
 
 	return ret;
 }

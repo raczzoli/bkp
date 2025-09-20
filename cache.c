@@ -1,4 +1,5 @@
 
+#include <asm-generic/errno-base.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -7,12 +8,17 @@
 #include <dirent.h>
 #include <errno.h>
 #include <stdbool.h>
+#include <fcntl.h>
+#include <unistd.h>
 
 #include "cache.h"
 
 struct cache *load_cache()
 {
+	int fd = 0, bytes = 0;
 	struct cache *cache = malloc(sizeof(struct cache));
+	struct cache_entry header;
+
 	if (!cache) {
 		fprintf(stderr, "Error allocating memory for cache!\n");
 		return NULL;
@@ -21,7 +27,64 @@ struct cache *load_cache()
 	cache->entries = NULL;
 	cache->entries_len = 0;
 
+	fd = open(".bkp-data/filecache", O_RDONLY);	
+	if (fd >= 0) 
+		while (true) {
+			bytes = read(fd, &header, sizeof(struct cache_entry));
+			if (bytes <= 0)
+				break;		
+
+			struct cache_entry *c = malloc(sizeof(struct cache_entry) + header.path_len + 1);
+			if (!c) {
+				fprintf(stderr, "Error allocating memory for cache entry!\n");
+				goto err;
+			}
+			
+			memcpy(c, &header, sizeof(struct cache_entry));
+			memset(c->path, 0, header.path_len + 1);
+
+			bytes = read(fd, c->path, header.path_len + 1); // read the \0 too
+			// TODO - some error check here too
+	
+			printf("path_len: %d\n", c->path_len);
+			printf("path: %s\n", c->path);	
+
+			add_cache_entry(cache, c);
+		}
+
+	goto end;
+
+err:
+	free(cache);
+	cache = NULL;
+
+end:
 	return cache;
+}
+
+int update_cache(struct cache *cache)
+{
+	int fd = open(".bkp-data/filecache.new", O_WRONLY | O_CREAT | O_EXCL, 0666);
+	if (fd < 0) {
+		if (errno == EEXIST) 
+			fprintf(stderr, "filecache.new already exists! Maybe another cache update in progress?\n");
+
+		return -1;
+	}
+
+	if (cache->entries_len > 0) {
+		for (int i=0;i<cache->entries_len;i++) {
+			struct cache_entry *c = cache->entries[i];
+			
+			write(fd, c, sizeof(struct cache_entry));
+			write(fd, c->path, c->path_len+1); // we write \0 too
+		}
+	}
+
+	close(fd);
+	rename(".bkp-data/filecache.new", ".bkp-data/filecache");
+
+	return 0;
 }
 
 int find_cache_entry(struct cache *cache, char *path)
@@ -33,7 +96,6 @@ int find_cache_entry(struct cache *cache, char *path)
         int mid = low + (high - low) / 2; 
         int cmp = strcmp(cache->entries[mid]->path, path);
         if (cmp == 0) {
-			//printf("Number of iterations: %d\n", num_iter);
             return mid;
 		}
         else if (cmp < 0)

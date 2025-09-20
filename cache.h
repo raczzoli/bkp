@@ -20,7 +20,7 @@ struct cache {
 	int entries_len;
 };
 
-int update_cache();
+int update_cache(struct cache *cache);
 struct cache *load_cache();
 int find_cache_entry(struct cache *cache, char *path);
 bool cache_entry_changed(struct cache_entry *entry, struct stat *stat);
