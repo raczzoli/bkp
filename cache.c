@@ -139,6 +139,8 @@ bool cache_entry_changed(struct cache_entry *entry, struct stat *stat)
 
 int add_cache_entry(struct cache *cache, struct cache_entry *entry, int do_sort)
 {
+	int idx = 0;
+
 	if (!cache->entries) {
 		cache->entries = calloc(100, sizeof(struct cache_entry *));
 	}
@@ -152,12 +154,14 @@ int add_cache_entry(struct cache *cache, struct cache_entry *entry, int do_sort)
 		return -ENOMEM;
 	}
 
-	int idx = do_sort > 0
-				? find_cache_entry_insert_idx(cache, entry->path)
-				: cache->entries_len;
-	
-	if (cache->entries_len > idx) 
-		memmove(&cache->entries[idx+1], &cache->entries[idx], (cache->entries_len - idx) * sizeof(struct cache_entry *));	
+	if (do_sort) {
+		idx = find_cache_entry_insert_idx(cache, entry->path);
+
+		if (cache->entries_len > idx) 
+			memmove(&cache->entries[idx+1], &cache->entries[idx], (cache->entries_len - idx) * sizeof(struct cache_entry *));	
+	}
+	else 
+		idx = cache->entries_len;
 	 
 	cache->entries[idx] = entry;
 	cache->entries_len++;
