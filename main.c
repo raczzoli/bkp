@@ -11,7 +11,7 @@ int main()
 	unsigned char sha1[SHA_DIGEST_LENGTH];
 	char sha1_hex[40+1];
 
-	ret = gen_tree("/home/rng89/", sha1);
+	ret = gen_tree("/home/rng89/workspace/linux/", sha1);
 
 	if (ret) {
 		fprintf(stderr, "Error generating tree!\n");
