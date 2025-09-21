@@ -13,6 +13,7 @@
 
 #include "cache.h"
 
+static int add_cache_entry_at(struct cache *cache, struct cache_entry *entry, int idx);
 static void free_cache(struct cache *cache);
 
 struct cache *load_cache()
@@ -51,7 +52,7 @@ struct cache *load_cache()
 		bytes = read(fd, c->path, header.path_len + 1); // read the \0 too
 		// TODO - some error check here too
 
-		add_cache_entry(cache, c, 0);
+		add_cache_entry_at(cache, c, cache->entries_len);
 	}
 
 	goto end;
@@ -137,10 +138,14 @@ bool cache_entry_changed(struct cache_entry *entry, struct stat *stat)
 	return false;
 }
 
-int add_cache_entry(struct cache *cache, struct cache_entry *entry, int do_sort)
+int add_cache_entry(struct cache *cache, struct cache_entry *entry)
 {
-	int idx = 0;
+	int idx = find_cache_entry_insert_idx(cache, entry->path);
+	return add_cache_entry_at(cache, entry, idx);	
+}
 
+static int add_cache_entry_at(struct cache *cache, struct cache_entry *entry, int idx)
+{
 	if (!cache->entries) {
 		cache->entries = calloc(100, sizeof(struct cache_entry *));
 	}
@@ -154,15 +159,9 @@ int add_cache_entry(struct cache *cache, struct cache_entry *entry, int do_sort)
 		return -ENOMEM;
 	}
 
-	if (do_sort) {
-		idx = find_cache_entry_insert_idx(cache, entry->path);
-
-		if (cache->entries_len > idx) 
-			memmove(&cache->entries[idx+1], &cache->entries[idx], (cache->entries_len - idx) * sizeof(struct cache_entry *));	
-	}
-	else 
-		idx = cache->entries_len;
-	 
+	if (cache->entries_len > idx) 
+		memmove(&cache->entries[idx+1], &cache->entries[idx], (cache->entries_len - idx) * sizeof(struct cache_entry *));	
+ 
 	cache->entries[idx] = entry;
 	cache->entries_len++;
 

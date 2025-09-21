@@ -25,7 +25,7 @@ struct cache *load_cache();
 int find_cache_entry(struct cache *cache, char *path, int ret_insert_idx);
 int find_cache_entry_insert_idx(struct cache *cache, char *path);
 bool cache_entry_changed(struct cache_entry *entry, struct stat *stat);
-int add_cache_entry(struct cache *cache, struct cache_entry *entry, int do_sort);
+int add_cache_entry(struct cache *cache, struct cache_entry *entry);
 
 
 #endif

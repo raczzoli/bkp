@@ -116,9 +116,9 @@ static int scan_tree(char *path, struct cache *cache, unsigned char *sha1)
 				c_entry->st_mtim = sb.st_mtim;
 				c_entry->st_ctim = sb.st_ctim;
 				c_entry->path_len = strlen(full_path);
-				strncpy(c_entry->path, full_path, c_entry->path_len+1);
+				strcpy(c_entry->path, full_path);
 				//printf("%s .... %s\n", full_path, c_entry->path);	
-				add_cache_entry(cache, c_entry, 1);
+				add_cache_entry(cache, c_entry);
 			}
 		}
 	
@@ -159,7 +159,7 @@ static int write_tree(struct tree *tree, unsigned char *sha1)
 
 	for (int i=0;i<tree->entries_len;i++) {
 		entry = tree->entries[i];
-		offset += sprintf(buffer+offset, "%d|%s", entry->st_mode, entry->name);
+		offset += sprintf(buffer+offset, "%d %s", entry->st_mode, entry->name);
 		offset += 1; // we want to keep the \0
 
 		memcpy(buffer+offset, entry->sha1, SHA_DIGEST_LENGTH);
