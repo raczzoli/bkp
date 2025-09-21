@@ -147,11 +147,11 @@ int add_cache_entry(struct cache *cache, struct cache_entry *entry)
 static int add_cache_entry_at(struct cache *cache, struct cache_entry *entry, int idx)
 {
 	if (!cache->entries) {
-		cache->entries = calloc(100, sizeof(struct cache_entry *));
+		cache->entries = calloc(1000, sizeof(struct cache_entry *));
 	}
 	else {
-		if (cache->entries_len % 100 == 0)
-			cache->entries = realloc(cache->entries, sizeof(struct cache_entry *) * (cache->entries_len + 100));
+		if (cache->entries_len % 1000 == 0)
+			cache->entries = realloc(cache->entries, sizeof(struct cache_entry *) * (cache->entries_len + 1000));
 	}
 	
 	if (!cache->entries) {
