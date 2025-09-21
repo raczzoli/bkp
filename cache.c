@@ -12,6 +12,7 @@
 #include <unistd.h>
 
 #include "cache.h"
+#include "file.h"
 
 static int add_cache_entry_at(struct cache *cache, struct cache_entry *entry, int idx);
 static void free_cache(struct cache *cache);
@@ -140,15 +141,14 @@ bool cache_entry_changed(struct cache_entry *entry, struct stat *stat)
 
 int add_cache_entry(struct cache *cache, struct cache_entry *entry)
 {
-	int idx = find_cache_entry_insert_idx(cache, entry->path);
-	int ret = add_cache_entry_at(cache, entry, idx);	
+	int ret = 0;
 
+	ret = write_file(entry->path, entry->st_size, entry->sha1);
 	if (ret)
-		return ret;
+		return -1;
 
-	
-
-	return 0;
+	int idx = find_cache_entry_insert_idx(cache, entry->path);
+	return add_cache_entry_at(cache, entry, idx);	
 }
 
 static int add_cache_entry_at(struct cache *cache, struct cache_entry *entry, int idx)

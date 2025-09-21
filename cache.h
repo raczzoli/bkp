@@ -12,7 +12,7 @@ struct cache_entry {
 	off_t st_size;
 	struct timespec st_mtim;
 	struct timespec st_ctim;
-	char sha1[SHA_DIGEST_LENGTH];
+	unsigned char sha1[SHA_DIGEST_LENGTH];
 	int path_len;
 	char path[0];
 };
