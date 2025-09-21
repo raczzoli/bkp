@@ -1,6 +1,6 @@
 # Compiler and flags
 CC = gcc
-CFLAGS = -std=gnu99 -Wall -Wextra -g
+CFLAGS = -std=gnu99 -Wall -O2 -Wextra -g
 LDFLAGS = -lcrypto #-lpthread -lcrypto -lssl -ljansson
 
 # Target executable
