@@ -141,7 +141,14 @@ bool cache_entry_changed(struct cache_entry *entry, struct stat *stat)
 int add_cache_entry(struct cache *cache, struct cache_entry *entry)
 {
 	int idx = find_cache_entry_insert_idx(cache, entry->path);
-	return add_cache_entry_at(cache, entry, idx);	
+	int ret = add_cache_entry_at(cache, entry, idx);	
+
+	if (ret)
+		return ret;
+
+	
+
+	return 0;
 }
 
 static int add_cache_entry_at(struct cache *cache, struct cache_entry *entry, int idx)

@@ -5,12 +5,14 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <limits.h>
+#include <openssl/sha.h>
 
 struct cache_entry {
 	mode_t st_mode;
 	off_t st_size;
 	struct timespec st_mtim;
 	struct timespec st_ctim;
+	char sha1[SHA_DIGEST_LENGTH];
 	int path_len;
 	char path[0];
 };
