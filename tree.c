@@ -111,6 +111,7 @@ static int scan_tree(char *path, struct cache *cache, unsigned char *sha1)
 					goto end;
 				}
 
+				memset(c_entry->sha1, 0, SHA_DIGEST_LENGTH);
 				c_entry->st_mode = sb.st_mode;
 				c_entry->st_size = sb.st_size;
 				c_entry->st_mtim = sb.st_mtim;
