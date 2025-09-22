@@ -22,6 +22,7 @@
 #include <sys/stat.h>
 #include <openssl/sha.h>
 #include <stdbool.h>
+#include <errno.h>
 
 #include "tree.h"
 #include "cache.h"
@@ -35,11 +36,11 @@ static void free_tree_entries(struct tree *tree);
 int gen_tree(char *path, unsigned char *sha1)
 {
 	int ret = 0;
+	printf("Loading filecache into memory...\n");
 	struct cache *cache = load_cache();
+	printf("Done.\n");
 
 	ret = scan_tree(path, cache, sha1);
-
-	printf("Cache updated, number of entries: %d\n", cache->entries_len);
 	
 	/*
 	 * TODO - This update, or maybe the whole gen_tree should be 
@@ -47,7 +48,9 @@ int gen_tree(char *path, unsigned char *sha1)
 	 * where we call load_cache(), scan_tree() and if successful
 	 * update_cache()
 	 */
+	printf("Writing %d entries to filecache...\n", cache->entries_len);
 	update_cache(cache);
+	printf("Done.\n");
 
 	return ret;
 }
