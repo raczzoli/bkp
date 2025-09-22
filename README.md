@@ -1,7 +1,7 @@
 # bkp
 A lightweight and space efficient (incremental) file-level backup utility for Linux.
 
-Example commands:
+Example commands:  
 ```bkp --create-snapshot```  
 ```bkp --snapshots```  
 ```bkp --restore-snapshot [sha1 reference of the snapshot]```  
