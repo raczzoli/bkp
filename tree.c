@@ -36,9 +36,14 @@ static void free_tree_entries(struct tree *tree);
 int gen_tree(char *path, unsigned char *sha1)
 {
 	int ret = 0;
-	printf("Loading filecache into memory...\n");
+	printf("Loading filecache into memory... ");
+	fflush(stdout);
+
 	struct cache *cache = load_cache();
-	printf("Done.\n");
+	if (!cache)
+		return -1;
+
+	printf("done\n");
 
 	ret = scan_tree(path, cache, sha1);
 	
@@ -48,9 +53,10 @@ int gen_tree(char *path, unsigned char *sha1)
 	 * where we call load_cache(), scan_tree() and if successful
 	 * update_cache()
 	 */
-	printf("Writing %d entries to filecache...\n", cache->entries_len);
+	printf("Writing %d entries to filecache... ", cache->entries_len);
+	fflush(stdout);
 	update_cache(cache);
-	printf("Done.\n");
+	printf("done\n");
 
 	return ret;
 }
