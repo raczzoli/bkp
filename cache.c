@@ -64,14 +64,11 @@ struct cache *load_cache()
 		goto err;
 	}
 
-	while(1) {
+	while(offset < cstat.st_size) {
 		c = cmap + offset;
 		offset += sizeof(struct cache_entry) + c->path_len+1;
 
 		add_cache_entry_at(cache, c, cache->entries_len);
-
-		if (offset == cstat.st_size)
-			break;
 	}
 
 	goto end;
