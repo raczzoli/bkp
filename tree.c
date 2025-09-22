@@ -14,7 +14,6 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.  
  */
 
-#include <asm-generic/errno-base.h>
 #include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
