@@ -21,6 +21,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <limits.h>
+#include <stdbool.h>
 #include <openssl/sha.h>
 
 struct cache_entry {

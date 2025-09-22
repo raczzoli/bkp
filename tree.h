@@ -19,7 +19,9 @@
 
 #include <stdint.h>
 #include <openssl/sha.h>
+
 #include "bkp.h"
+#include "cache.h"
 
 enum tree_entry_type {
 	ENTRY_TYPE_DIR=1,
@@ -40,6 +42,6 @@ typedef struct tree {
 	int entries_len;
 } tree_t;
 
-int gen_tree(char *path, unsigned char *sha1);
+int create_tree(char *path, struct cache *cache, unsigned char *sha1);
 
 #endif 

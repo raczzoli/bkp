@@ -33,32 +33,9 @@ static int add_tree_entry(struct tree *tree, struct tree_entry *entry);
 static int write_tree(struct tree *tree, unsigned char *sha1);
 static void free_tree_entries(struct tree *tree);
 
-int gen_tree(char *path, unsigned char *sha1)
+int create_tree(char *path, struct cache *cache, unsigned char *sha1)
 {
-	int ret = 0;
-	printf("Loading filecache into memory... ");
-	fflush(stdout);
-
-	struct cache *cache = load_cache();
-	if (!cache)
-		return -1;
-
-	printf("done\n");
-
-	ret = scan_tree(path, cache, sha1);
-	
-	/*
-	 * TODO - This update, or maybe the whole gen_tree should be 
-	 * placed somewhere else. Maybe a separate snapshot.c or backup.c
-	 * where we call load_cache(), scan_tree() and if successful
-	 * update_cache()
-	 */
-	printf("Writing %d entries to filecache... ", cache->entries_len);
-	fflush(stdout);
-	update_cache(cache);
-	printf("done\n");
-
-	return ret;
+	return scan_tree(path, cache, sha1);
 }
 
 static int scan_tree(char *path, struct cache *cache, unsigned char *sha1)

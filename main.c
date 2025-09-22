@@ -20,7 +20,7 @@
 #include <getopt.h>
 #include <openssl/sha.h>
 
-#include "tree.h"
+#include "snapshot.h"
 #include "sha1.h"
 
 static struct option cmdline_options[] = {
@@ -31,8 +31,6 @@ static struct option cmdline_options[] = {
 	{0, 0, 0, 0}
 };
 
-static void create_snapshot();
-
 static void print_help();
 static void parse_cmdline_args(int argc, char **argv);
 
@@ -40,24 +38,6 @@ int main(int argc, char **argv)
 {
 	parse_cmdline_args(argc, argv);
 	return 0;
-}
-
-static void create_snapshot()
-{
-	int ret = 0;
-	unsigned char sha1[SHA_DIGEST_LENGTH];
-	char sha1_hex[40+1];
-
-	ret = gen_tree("/home/rng89/", sha1);
-
-	if (ret) {
-		fprintf(stderr, "Error generating tree (code: %d)!\n", ret);
-		return;
-	}
-
-	sha1_to_hex(sha1, sha1_hex);
-
-	printf("\nTree sha1: %s\n", sha1_hex);
 }
 
 static void parse_cmdline_args(int argc, char **argv)
