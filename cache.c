@@ -24,6 +24,7 @@
 #include <stdbool.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <sys/mman.h>
 
 #include "cache.h"
 #include "file.h"
@@ -33,10 +34,12 @@ static void free_cache(struct cache *cache);
 
 struct cache *load_cache()
 {
-	int fd = 0, bytes = 0;
+	int fd = 0;
+	int offset = 0;
+	struct stat cstat;
 	struct cache *cache = malloc(sizeof(struct cache));
-	struct cache_entry header;
 	struct cache_entry *c = NULL;
+	void *cmap = NULL;
 
 	if (!cache) {
 		fprintf(stderr, "Error allocating memory for cache!\n");
@@ -49,36 +52,33 @@ struct cache *load_cache()
 	fd = open(".bkp-data/filecache", O_RDONLY);	
 	if (fd < 0) 
 		goto end; // not an error, it just doesn`t exist yet
-			
-	while (true) {
-		bytes = read(fd, &header, sizeof(struct cache_entry));
-		if (bytes <= 0)
-			break;		
+	
+	if (fstat(fd, &cstat)) {	
+		fprintf(stderr, "Error calling fstat on filecache!\n");
+		goto err;
+	}
+	
+	cmap = mmap(NULL, cstat.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
+	if (cmap == MAP_FAILED) {
+		fprintf(stderr, "mmap failed while mapping filecache into memory!\n");
+		goto err;
+	}
 
-		c = malloc(sizeof(struct cache_entry) + header.path_len + 1);
-		if (!c) {
-			fprintf(stderr, "Error allocating memory for cache entry!\n");
-			goto err;
-		}
-		
-		memcpy(c, &header, sizeof(struct cache_entry));
-		memset(c->path, 0, header.path_len + 1);
-
-		bytes = read(fd, c->path, header.path_len + 1); // read the \0 too
-		// TODO - some error check here too
+	while(1) {
+		c = cmap + offset;
+		offset += sizeof(struct cache_entry) + c->path_len+1;
 
 		add_cache_entry_at(cache, c, cache->entries_len);
+
+		if (offset == cstat.st_size)
+			break;
 	}
 
 	goto end;
 
-err: 
-	if (c) {
-		free(c);
-		c = NULL;
-	}
-
+err:
 	free_cache(cache);
+	return NULL;
 
 end:
 	if (fd >= 0)
