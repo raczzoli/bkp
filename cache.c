@@ -90,6 +90,8 @@ end:
 int update_cache(struct cache *cache)
 {
 	int fd = open(".bkp-data/filecache.new", O_WRONLY | O_CREAT | O_EXCL, 0666);
+	int size = 0;
+
 	if (fd < 0) {
 		if (errno == EEXIST) 
 			fprintf(stderr, "filecache.new already exists! Maybe another cache update in progress?\n");
@@ -101,9 +103,9 @@ int update_cache(struct cache *cache)
 		for (int i=0;i<cache->entries_len;i++) {
 			//printf("%s\n", cache->entries[i]->path);
 			struct cache_entry *c = cache->entries[i];
-			
-			write(fd, c, sizeof(struct cache_entry));
-			write(fd, c->path, c->path_len+1); // we write \0 too
+			size = sizeof(struct cache_entry) + c->path_len + 1;		
+			write(fd, c, size);
+			//write(fd, c->path, c->path_len+1); // we write \0 too
 		}
 	}
 
