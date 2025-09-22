@@ -59,14 +59,7 @@ int write_file(char *path, off_t size, unsigned char *sha1)
 	SHA1((const unsigned char *)chunks_buff, chunks_offset, sha1);
 
 	ret = write_sha1_file(sha1, chunks_buff, chunks_offset);
-	if (ret)
-		goto end;
 
-	char plm_buff[40+1];
-	sha1_to_hex(sha1, plm_buff);
-	printf("Writtent chunk file: %s\n", plm_buff);
-	// TODO - write the sha1 chunks to the file content sha1 file
-	
 end:
 	if (buff)
 		free(buff);
@@ -75,7 +68,7 @@ end:
 		free(chunks_buff);
 
 	close(fd);
-	return 0;
+	return ret;
 }
 
 static int write_blob(char *buffer, int size, unsigned char *sha1)
