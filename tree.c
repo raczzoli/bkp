@@ -22,6 +22,7 @@
 #include <sys/stat.h>
 #include <openssl/sha.h>
 #include <stdbool.h>
+#include <unistd.h>
 #include <errno.h>
 
 #include "tree.h"
@@ -213,6 +214,33 @@ static void free_tree_entries(struct tree *tree)
 
 int print_tree_file(int fd)
 {
-	printf("Printing tree file!\n");
+	// TODO - temp
+	int size = 1024 * 1024 * 10; 
+	char *buff = malloc(size);
+	int offset = 0;
+	char path[PATH_MAX];
+	char sha1_hex[40+1];
+	int mode = 0;
+	int consumed = 0;
+	int bytes = 0;
+
+	bytes = read(fd, buff, size);
+	if (bytes < 0) {
+		fprintf(stderr, "Error reading from tree file!\n");
+		return -1;
+	}
+	
+	while(*(buff+offset) != '\0') {
+		// read file mode + path + \0
+		sscanf(buff+offset, "%d %s%n", &mode, path, &consumed);
+		offset += consumed + 1; // \0 too
+
+		// read referenced sha1 hash
+		sha1_to_hex((unsigned char *)buff+offset, sha1_hex);
+		offset += SHA_DIGEST_LENGTH;
+
+		printf("%-6d %-50s %s\n", mode, path, sha1_hex);
+	}
+
 	return 0;
 }
