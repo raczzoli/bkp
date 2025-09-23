@@ -21,12 +21,13 @@
 #include <openssl/sha.h>
 
 #include "snapshot.h"
-#include "sha1.h"
+#include "print-file.h"
 
 static struct option cmdline_options[] = {
 	{"create-snapshot",  no_argument,       0, 0},
 	{"snapshots",        no_argument,       0, 0},
 	{"restore-snapshot", required_argument, 0, 0},
+	{"show-file", required_argument, 0, 0},
 	{"help", no_argument, 0, 'h'},
 	{0, 0, 0, 0}
 };
@@ -64,6 +65,10 @@ static void parse_cmdline_args(int argc, char **argv)
 					}
 					printf("--restore-snapshot %s :: to be implemented\n", optarg);
 				}
+				else if (strcmp(cmdline_options[opt_idx].name, "show-file") == 0) {
+					print_sha1_file(optarg);
+				}
+
 			break;
 			case '?': // unknown option or missing required argument
 				break;
