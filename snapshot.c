@@ -16,17 +16,26 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <fcntl.h>
+#include <unistd.h>
 #include <openssl/sha.h>
+#include <string.h>
+#include <time.h>
 
 #include "snapshot.h"
 #include "cache.h"
 #include "tree.h"
 #include "sha1.h"
 
+static int write_snapshot(unsigned char *tree_sha1, unsigned char *sha1);
+static int read_last_sha1(unsigned char *sha1);
+static int write_last_sha1(unsigned char *sha1);
+
 int create_snapshot()
 {
 	int ret = 0;
-	unsigned char sha1[SHA_DIGEST_LENGTH];
+	unsigned char tree_sha1[SHA_DIGEST_LENGTH];
+	unsigned char snap_sha1[SHA_DIGEST_LENGTH];
 	char sha1_hex[40+1];
 
 	printf("Loading filecache into memory... ");
@@ -38,21 +47,106 @@ int create_snapshot()
 
 	printf("done\n");
 
-	ret = create_tree("/home/rng89/", cache, sha1);
+	ret = create_tree("/home/rng89/workspace/linux/", cache, tree_sha1);
 
 	if (ret) {
 		fprintf(stderr, "Error generating tree (code: %d)!\n", ret);
-		return -1;
+		return ret;
 	}
 
 	printf("Writing %d entries to filecache... ", cache->entries_len);
 	fflush(stdout);
 	update_cache(cache);
 	printf("done\n");
+	
+	ret = write_snapshot(tree_sha1, snap_sha1);
+	if (ret)
+		goto end;
 
-	sha1_to_hex(sha1, sha1_hex);
+	sha1_to_hex(tree_sha1, sha1_hex);
 	printf("\nTree sha1: %s\n", sha1_hex);
+
+	sha1_to_hex(snap_sha1, sha1_hex);
+	printf("Snapshot sha1: %s\n", sha1_hex);
+
+end:
+	return ret;
+}
+
+static int write_snapshot(unsigned char *tree_sha1, unsigned char *sha1)
+{
+	unsigned char parent_sha1[SHA_DIGEST_LENGTH];
+	char buffer[1024];
+	int offset = 0;
+	int ret = 0;
+
+	memset(buffer, 0, 1024);
+
+	read_last_sha1(parent_sha1);
+
+	offset = 1 + sprintf(buffer, "snapshot");	
+	offset += 1 + sprintf(buffer+offset, "parent ");
+	memcpy(buffer+offset, parent_sha1, SHA_DIGEST_LENGTH);
+	offset += SHA_DIGEST_LENGTH;
+
+	offset += 1 + sprintf(buffer+offset, "tree ");
+
+	memcpy(buffer+offset, tree_sha1, SHA_DIGEST_LENGTH);
+	offset += SHA_DIGEST_LENGTH;
+
+	// writing time in sec
+	time_t now = time(NULL);
+	struct tm *local = localtime(&now);
+
+	offset += 1 + sprintf(buffer+offset, "time %ld", (long)now);
+
+	// writing date-time in human readable form
+    offset += 1 + strftime(buffer+offset, sizeof(buffer)-offset, "date %Y-%m-%d %H:%M:%S", local);
+
+	// maybe some other infos in the future...
+
+	SHA1((const unsigned char *)buffer, offset, sha1);	
+	ret = write_sha1_file(sha1, buffer, offset);
+
+	if (ret) {
+		fprintf(stderr, "Error writing snapshot file!\n");
+		return -1;
+	}
+
+	write_last_sha1(sha1);
+
+	return ret;
+}
+
+static int write_last_sha1(unsigned char *sha1)
+{
+	int fd = open(".bkp-data/last_snapshot", O_WRONLY | O_CREAT, 0666);
+	if (fd < 0) {
+		fprintf(stderr, "Error writing snpshot hash to last_snapshot!\n");
+		return -1;
+	}
+
+	write(fd, sha1, SHA_DIGEST_LENGTH);
+	close(fd);
 
 	return 0;
 }
 
+static int read_last_sha1(unsigned char *sha1)
+{
+	int bytes = 0;
+	int fd = 0;
+	
+	memset(sha1, 0, SHA_DIGEST_LENGTH);
+
+	fd = open(".bkp-data/last_snapshot", O_RDONLY);
+	if (fd < 0)
+		return -1;
+
+	bytes = read(fd, sha1, SHA_DIGEST_LENGTH);
+	if (bytes != SHA_DIGEST_LENGTH) 
+		return -1;
+
+	close(fd);
+	return 0;
+}
