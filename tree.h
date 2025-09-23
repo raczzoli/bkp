@@ -43,5 +43,6 @@ typedef struct tree {
 } tree_t;
 
 int create_tree(char *path, struct cache *cache, unsigned char *sha1);
+int print_tree_file(int fd);
 
 #endif 

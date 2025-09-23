@@ -23,7 +23,7 @@
 #include <openssl/sha.h>
 
 #include "file.h"
-#include "sha1.h"
+#include "sha1-file.h"
 
 static int write_blob(char *buffer, int size, unsigned char *sha1);
 

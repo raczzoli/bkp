@@ -25,7 +25,7 @@
 #include "snapshot.h"
 #include "cache.h"
 #include "tree.h"
-#include "sha1.h"
+#include "sha1-file.h"
 
 static int write_snapshot(unsigned char *tree_sha1, unsigned char *sha1);
 static int read_last_sha1(unsigned char *sha1);
@@ -103,8 +103,7 @@ static int write_snapshot(unsigned char *tree_sha1, unsigned char *sha1)
 	// writing date-time in human readable form
     offset += 1 + strftime(buffer+offset, sizeof(buffer)-offset, "date %Y-%m-%d %H:%M:%S", local);
 
-	// maybe some other infos in the future...
-
+	// hash the buffer
 	SHA1((const unsigned char *)buffer, offset, sha1);	
 	ret = write_sha1_file(sha1, buffer, offset);
 
@@ -148,5 +147,11 @@ static int read_last_sha1(unsigned char *sha1)
 		return -1;
 
 	close(fd);
+	return 0;
+}
+
+int print_snapshot_file(int fd)
+{
+	printf("printing snapshot file!\n");
 	return 0;
 }

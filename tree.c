@@ -26,7 +26,7 @@
 
 #include "tree.h"
 #include "cache.h"
-#include "sha1.h"
+#include "sha1-file.h"
 
 static int scan_tree(char *path, struct cache *cache, unsigned char *sha1);
 static int add_tree_entry(struct tree *tree, struct tree_entry *entry);
@@ -209,4 +209,10 @@ static void free_tree_entries(struct tree *tree)
 	free(tree->entries);
 	tree->entries = NULL;
 	tree->entries_len = 0;
+}
+
+int print_tree_file(int fd)
+{
+	printf("Printing tree file!\n");
+	return 0;
 }

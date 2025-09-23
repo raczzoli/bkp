@@ -18,5 +18,6 @@
 #define SNAPSHOT_H
 
 int create_snapshot();
+int print_snapshot_file(int fd);
 
 #endif
