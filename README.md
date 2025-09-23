@@ -5,6 +5,5 @@ Example commands:
 ```bkp --create-snapshot```  
 ```bkp --snapshots```  
 ```bkp --restore-snapshot [sha1 reference of the snapshot]```   
-...
+```bkp --show-file [SHA1]```  
 
-and many more to come - even these 3 doesn`t exist for the moment :)
