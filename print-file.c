@@ -2,6 +2,8 @@
 #include <string.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <sys/stat.h>
+
 #include "print-file.h"
 #include "tree.h"
 #include "snapshot.h"
@@ -13,6 +15,7 @@ int print_sha1_file(char *sha1_hex)
 	int fd = 0;
 	char path[PATH_MAX];
 	char ftype[20];
+	struct stat stat;
 
 	sprintf(path, ".bkp-data/%s", sha1_hex);
 	
@@ -20,6 +23,12 @@ int print_sha1_file(char *sha1_hex)
 	if (fd < 0) {
 		fprintf(stderr, "SHA1 file %s doesn`t exist!\n", sha1_hex);
 		return -1;
+	}
+
+	if (fstat(fd, &stat)) {
+		ret = -1;
+		fprintf(stderr, "fstat error!\n");
+		goto end;
 	}
 
 	bytes = read(fd, ftype, 20);
@@ -39,10 +48,12 @@ int print_sha1_file(char *sha1_hex)
 	 */
 	lseek(fd, len+1, SEEK_SET);
 
+	printf("----------- %s -----------\n", ftype);
+
 	if (strcmp(ftype, "snapshot") == 0) 
-		print_snapshot_file(fd);
+		print_snapshot_file(fd, &stat);
 	else if (strcmp(ftype, "tree") == 0) 
-		print_tree_file(fd);
+		print_tree_file(fd, &stat);
 	// blob
 	// chunks
 	// etc.
