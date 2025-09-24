@@ -3,7 +3,7 @@ A lightweight and space efficient (incremental) file-level backup utility for Li
 
 Example commands:  
 ```bkp --create-snapshot```  
-```bkp --snapshots```  
+```bkp --snapshots [LIMIT]```  
 ```bkp --restore-snapshot [sha1 reference of the snapshot]```   
 ```bkp --show-file [SHA1]```  
 
