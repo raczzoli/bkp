@@ -88,7 +88,7 @@ static void print_help()
     printf("A lightweight and space efficient (incremental) file-level backup utility for Linux.\n\n");
     printf("Options:\n");
     printf("  --create-snapshot                               Create a new snapshot of the backed up directory\n");
-    printf("  --snapshots                                     Print a list of snapshots done so far\n");
+    printf("  --snapshots [LIMIT]                             Print a list of snapshots done so far\n");
     printf("  --restore-snapshot [SHA1] [OUTPUT_DIR]          Restores the snapshot identified by the passed SHA1 to OUTPUT_DIR\n");
 	printf("\n");
 	printf("  -h, --help                                      Show this help message and exit\n");
