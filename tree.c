@@ -122,8 +122,9 @@ static int scan_tree(char *path, struct cache *cache, unsigned char *sha1)
 				strcpy(c_entry->path, full_path);
 				//printf("%s .... %s\n", full_path, c_entry->path);	
 				add_cache_entry(cache, c_entry);
-				memcpy(entry->sha1, c_entry->sha1, SHA_DIGEST_LENGTH);
 			}
+			// add file sha1 to tree entry
+			memcpy(entry->sha1, c_entry->sha1, SHA_DIGEST_LENGTH);
 		}
 	
 		ret = add_tree_entry(&tree, entry);
@@ -213,24 +214,24 @@ static void free_tree_entries(struct tree *tree)
 	tree->entries_len = 0;
 }
 
-int print_tree_file(int fd)
+int print_tree_file(int fd, struct stat *stat)
 {
-	// TODO - temp
-	int size = 1024 * 1024 * 10; 
-	char *buff = malloc(size);
+	int ret = 0;
+	char *buff = malloc(stat->st_size);
 	int offset = 0;
 	char path[PATH_MAX];
-	char sha1_hex[40+1];
 	int mode = 0;
 	int consumed = 0;
 	int bytes = 0;
+	char sha1_hex[40+1];
 
-	bytes = read(fd, buff, size);
+	bytes = read(fd, buff, stat->st_size);
 	if (bytes < 0) {
+		ret = -1;
 		fprintf(stderr, "Error reading from tree file!\n");
-		return -1;
+		goto end;
 	}
-	
+
 	while(*(buff+offset) != '\0') {
 		// read file mode + path + \0
 		sscanf(buff+offset, "%d %s%n", &mode, path, &consumed);
@@ -243,5 +244,7 @@ int print_tree_file(int fd)
 		printf("%-6o %-50s %s\n", mode, path, sha1_hex);
 	}
 
-	return 0;
+end:
+	free(buff);
+	return ret;
 }
