@@ -56,7 +56,9 @@ static void parse_cmdline_args(int argc, char **argv)
 					create_snapshot();
 				}
 				else if (strcmp(cmdline_options[opt_idx].name, "snapshots") == 0) {
-					printf("--snapshots :: to be implemented\n");
+					int num = (opt_idx + 1) < argc ? atoi(argv[opt_idx+1]) : 10; 
+					printf("List of created snapshots:\n\n");
+					list_snapshots(num);
 				}
 				else if (strcmp(cmdline_options[opt_idx].name, "restore-snapshot") == 0) {
 					if (!optarg) {
