@@ -58,8 +58,8 @@ int write_file(char *path, off_t size, unsigned char *sha1)
 		ret = -ENOMEM;
 		goto end;
 	}
-	memset(chunks_buff, 0, 100 + chunks_buff_size);
 
+	memset(chunks_buff, 0, 100 + chunks_buff_size);
 	chunks_offset = sprintf(chunks_buff, "chunks") + 1; // \0 too
 
 	while((bytes_read = read(fd, buff, FILE_CHUNK_SIZE)) > 0)
@@ -73,7 +73,6 @@ int write_file(char *path, off_t size, unsigned char *sha1)
 	}
 
 	SHA1((const unsigned char *)chunks_buff, chunks_offset, sha1);
-
 	ret = write_sha1_file(sha1, chunks_buff, chunks_offset);
 
 end:
