@@ -48,9 +48,6 @@ static void parse_cmdline_args(int argc, char **argv)
 
 	while ((opt = getopt_long(argc, argv, "h", cmdline_options, &opt_idx)) != -1) {
 		switch(opt) {
-			case 'h':
-				print_help();
-			break;
 			case 0:
 				if (strcmp(cmdline_options[opt_idx].name, "create-snapshot") == 0) {
 					create_snapshot();
@@ -74,6 +71,10 @@ static void parse_cmdline_args(int argc, char **argv)
 
 			break;
 			case '?': // unknown option or missing required argument
+				printf("Unknown option or missing required argument!\n");
+				// fall through
+			case 'h':
+				print_help();
 				break;
 			default:
 				printf("Invalid command line option!\n");
