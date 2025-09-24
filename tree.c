@@ -122,6 +122,7 @@ static int scan_tree(char *path, struct cache *cache, unsigned char *sha1)
 				strcpy(c_entry->path, full_path);
 				//printf("%s .... %s\n", full_path, c_entry->path);	
 				add_cache_entry(cache, c_entry);
+				memcpy(entry->sha1, c_entry->sha1, SHA_DIGEST_LENGTH);
 			}
 		}
 	
@@ -239,7 +240,7 @@ int print_tree_file(int fd)
 		sha1_to_hex((unsigned char *)buff+offset, sha1_hex);
 		offset += SHA_DIGEST_LENGTH;
 
-		printf("%-6d %-50s %s\n", mode, path, sha1_hex);
+		printf("%-6o %-50s %s\n", mode, path, sha1_hex);
 	}
 
 	return 0;
