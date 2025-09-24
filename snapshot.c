@@ -39,14 +39,11 @@ int list_snapshots(int limit)
 	char sha1_hex[40+1];
 	struct snapshot snapshot;
 
-	int fd = open(".bkp-data/last_snapshot", O_RDONLY);
-	if (fd < 0) {
-		fprintf(stderr, "Last snapshot not found!\n");
+	ret = read_last_sha1(sha1);
+	if (ret) {
+		fprintf(stderr, "No snapshots found!\n");
 		return -1;
 	}
-
-	read(fd, sha1, SHA_DIGEST_LENGTH);
-	close(fd);
 
 	while(limit > 0) {
 		ret = read_snapshot_file(sha1, &snapshot);
