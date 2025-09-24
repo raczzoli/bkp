@@ -17,9 +17,21 @@
 #ifndef SNAPSHOT_H
 #define SNAPSHOT_H
 
+#include <openssl/sha.h>
+#include <time.h>
 #include <sys/stat.h>
 
+struct snapshot {
+	unsigned char sha1[SHA_DIGEST_LENGTH];
+	unsigned char parent_sha1[SHA_DIGEST_LENGTH];
+	unsigned char tree_sha1[SHA_DIGEST_LENGTH];
+	char date[20]; // YYYY-MM-DD HH:ii:ss\0
+	time_t time;
+};
+
 int create_snapshot();
+int list_snapshots(int limit);
+int read_snapshot_file(unsigned char *sha1, struct snapshot *snapshot);
 int print_snapshot_file(int fd, struct stat *stat);
 
 #endif

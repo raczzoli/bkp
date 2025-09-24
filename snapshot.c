@@ -21,6 +21,7 @@
 #include <openssl/sha.h>
 #include <string.h>
 #include <time.h>
+#include <errno.h>
 
 #include "snapshot.h"
 #include "cache.h"
@@ -30,6 +31,43 @@
 static int write_snapshot(unsigned char *tree_sha1, unsigned char *sha1);
 static int read_last_sha1(unsigned char *sha1);
 static int write_last_sha1(unsigned char *sha1);
+
+int list_snapshots(int limit)
+{
+	int ret = 0;
+	unsigned char sha1[SHA_DIGEST_LENGTH];
+	char sha1_hex[40+1];
+	struct snapshot snapshot;
+
+	int fd = open(".bkp-data/last_snapshot", O_RDONLY);
+	if (fd < 0) {
+		fprintf(stderr, "Last snapshot not found!\n");
+		return -1;
+	}
+
+	read(fd, sha1, SHA_DIGEST_LENGTH);
+	close(fd);
+
+	while(limit > 0) {
+		ret = read_snapshot_file(sha1, &snapshot);
+		if (ret)
+			return -1;
+
+		sha1_to_hex(snapshot.sha1, sha1_hex);
+
+		printf("Snapshot SHA1: %s\n", sha1_hex);
+		printf("Created on: %s\n", snapshot.date);
+		printf("----------------------------------------------------------\n");
+
+		if (!sha1_is_valid(snapshot.parent_sha1)) 
+			break;
+
+		memcpy(sha1, snapshot.parent_sha1, SHA_DIGEST_LENGTH);
+		limit--;
+	}
+
+	return 0;
+}
 
 int create_snapshot()
 {
@@ -47,7 +85,7 @@ int create_snapshot()
 
 	printf("done\n");
 
-	ret = create_tree("/home/rng89/workspace/linux/", cache, tree_sha1);
+	ret = create_tree("/home/rng89/", cache, tree_sha1);
 
 	if (ret) {
 		fprintf(stderr, "Error generating tree (code: %d)!\n", ret);
@@ -150,12 +188,85 @@ static int read_last_sha1(unsigned char *sha1)
 	return 0;
 }
 
+int read_snapshot_file(unsigned char *sha1, struct snapshot *snapshot)
+{
+	int ret = 0;
+	char sha1_hex[40+1];
+	char path[PATH_MAX];
+	struct stat stat;
+	char *buff = NULL;
+	int offset = 0;
+	int bytes = 0;
+
+	sha1_to_hex(sha1, sha1_hex);
+	sprintf(path, ".bkp-data/%s", sha1_hex);
+
+	int fd = open(path, O_RDONLY);
+	if (fd < 0) {
+		fprintf(stderr, "Invalid snapshot file: %s!\n", sha1_hex);
+		return -1;
+	}
+
+	if (fstat(fd, &stat)) {
+		fprintf(stderr, "Cannot stat snapshot file: %s!\n", sha1_hex);
+		ret = -1;
+		goto end;
+	}
+
+	buff = malloc(stat.st_size);
+	if (!buff) {
+		ret = -ENOMEM;
+		fprintf(stderr, "Error allocating memory for snapshot file: %s\n", sha1_hex);
+		goto end;
+	}
+
+	bytes = read(fd, buff, stat.st_size);
+	if (bytes < 0) {
+		ret = -1;
+		fprintf(stderr, "Error reading from snapshot file: %s!\n", sha1_hex);
+		goto end;
+	}
+
+	memcpy(snapshot->sha1, sha1, SHA_DIGEST_LENGTH);
+
+	while(*(buff+offset) != '\0') {
+		if (strcmp(buff+offset, "parent ") == 0) {
+			offset += 8; // "parent \0"
+			memcpy(snapshot->parent_sha1, buff+offset, SHA_DIGEST_LENGTH);
+			sha1_to_hex((unsigned char *)buff+offset, sha1_hex);
+			offset += SHA_DIGEST_LENGTH;
+		}
+		else if (strcmp(buff+offset, "tree ") == 0) {
+			offset += 6; // "trree \0"
+			memcpy(snapshot->tree_sha1, buff+offset, SHA_DIGEST_LENGTH);
+			offset += SHA_DIGEST_LENGTH;
+		}
+		else if (strncmp(buff+offset, "date ", 5) == 0) {
+			offset += 5; // "date "
+			strcpy(snapshot->date, buff+offset);
+			offset += strlen(buff+offset);
+		}
+		else if (strncmp(buff+offset, "time ", 5) == 0) {
+			int consumed = 0;
+			offset += 5; // "date "
+			sscanf(buff+offset, "%ld%n", &snapshot->time, &consumed);
+			offset += consumed + 1;
+		}
+		else {
+			offset += strlen(buff+offset)+1;
+		}
+	}
+
+end:
+	close(fd);
+	return ret;
+}
+
 int print_snapshot_file(int fd, struct stat *stat)
 {
 	int ret = 0;
 	char *buff = malloc(stat->st_size);
 	int offset = 0;
-	char path[PATH_MAX];
 	int bytes = 0;
 	char sha1_hex[40+1];
 
