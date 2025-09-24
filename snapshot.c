@@ -150,8 +150,46 @@ static int read_last_sha1(unsigned char *sha1)
 	return 0;
 }
 
-int print_snapshot_file(int fd)
+int print_snapshot_file(int fd, struct stat *stat)
 {
-	printf("printing snapshot file!\n");
-	return 0;
+	int ret = 0;
+	char *buff = malloc(stat->st_size);
+	int offset = 0;
+	char path[PATH_MAX];
+	int bytes = 0;
+	char sha1_hex[40+1];
+
+	bytes = read(fd, buff, stat->st_size);
+	if (bytes < 0) {
+		ret = -1;
+		fprintf(stderr, "Error reading from snapshot file!\n");
+		goto end;
+	}
+
+	while(*(buff+offset) != '\0') {
+		if (strcmp(buff+offset, "parent ") == 0) {
+			offset += 8; // "parent \0"
+			sha1_to_hex((unsigned char *)buff+offset, sha1_hex);
+			offset += SHA_DIGEST_LENGTH;
+			printf("Snapshot before: %s\n", sha1_hex);
+		}
+		else if (strcmp(buff+offset, "tree ") == 0) {
+			offset += 6; // "trree \0"
+			sha1_to_hex((unsigned char *)buff+offset, sha1_hex);
+			offset += SHA_DIGEST_LENGTH;
+			printf("Tree hash: %s\n", sha1_hex);
+		}
+		else if (strncmp(buff+offset, "date ", 5) == 0) {
+			offset += 5; // "date "
+			printf("Created on: %s\n", buff+offset);
+			offset += strlen(buff+offset);
+		}
+		else {
+			offset += strlen(buff+offset)+1;
+		}
+	}
+
+end:
+	free(buff);
+	return ret;
 }

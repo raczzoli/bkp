@@ -17,7 +17,9 @@
 #ifndef SNAPSHOT_H
 #define SNAPSHOT_H
 
+#include <sys/stat.h>
+
 int create_snapshot();
-int print_snapshot_file(int fd);
+int print_snapshot_file(int fd, struct stat *stat);
 
 #endif
