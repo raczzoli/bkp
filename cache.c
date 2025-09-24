@@ -102,7 +102,6 @@ int update_cache(struct cache *cache)
 			struct cache_entry *c = cache->entries[i];
 			size = sizeof(struct cache_entry) + c->path_len + 1;		
 			write(fd, c, size);
-			//write(fd, c->path, c->path_len+1); // we write \0 too
 		}
 	}
 
