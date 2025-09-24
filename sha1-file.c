@@ -35,6 +35,15 @@ int sha1_to_hex(unsigned char *sha1, char* out_hex)
 	return 0;
 }
 
+int sha1_is_valid(unsigned char *sha1)
+{
+	for (int i=0;i<SHA_DIGEST_LENGTH;i++) 
+		if (sha1[i] != 0)
+			return 1;
+
+	return 0;
+}
+
 int write_sha1_file(unsigned char *sha1, char *buffer, int len)
 {
 	int ret = 0;
