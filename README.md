@@ -1,4 +1,4 @@
-# bkp - A space efficient file-level backup utility for Linux
+# bkp - Space efficient incremental file-level backup utility for Linux
 
 Example commands:  
 ```bkp --create-snapshot```  
