@@ -32,6 +32,6 @@ struct snapshot {
 int create_snapshot();
 int list_snapshots(int limit);
 int read_snapshot_file(unsigned char *sha1, struct snapshot *snapshot);
-int print_snapshot_file(int fd, struct stat *stat);
+int print_snapshot_file(unsigned char *sha1);
 
 #endif
