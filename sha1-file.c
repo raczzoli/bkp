@@ -24,6 +24,8 @@
 
 #include "sha1.h"
 
+static int hexchar_to_int(char c);
+
 int sha1_to_hex(unsigned char *sha1, char* out_hex)
 {
 	if (!out_hex)
@@ -33,6 +35,31 @@ int sha1_to_hex(unsigned char *sha1, char* out_hex)
         sprintf(out_hex + i*2, "%02x", sha1[i]);
 
 	return 0;
+}
+
+static int hexchar_to_int(char c) 
+{
+    if ('0' <= c && c <= '9') return c - '0';
+    if ('a' <= c && c <= 'f') return c - 'a' + 10;
+    if ('A' <= c && c <= 'F') return c - 'A' + 10;
+    return -1;
+}
+
+int hex_to_sha1(char *hex, unsigned char *out_sha1) 
+{
+    int len = 40;
+
+    for (int i = 0; i < len / 2; i++) {
+        int hi = hexchar_to_int(hex[2 * i]);
+        int lo = hexchar_to_int(hex[2 * i + 1]);
+
+        if (hi < 0 || lo < 0) 
+			return -1;
+
+        out_sha1[i] = (hi << 4) | lo;
+    }
+
+    return 0;
 }
 
 int sha1_is_valid(unsigned char *sha1)
