@@ -21,6 +21,8 @@
 #include <openssl/sha.h>
 
 #include "snapshot.h"
+#include "restore.h"
+#include "sha1-file.h"
 #include "print-file.h"
 
 static struct option cmdline_options[] = {
@@ -59,11 +61,15 @@ static void parse_cmdline_args(int argc, char **argv)
 					list_snapshots(limit);
 				}
 				else if (strcmp(cmdline_options[opt_idx].name, "restore-snapshot") == 0) {
-					if (!optarg) {
-						printf("Invalid usage of --restore-snapshot [SHA1]");
+					if ((argc - opt_idx) != 2) {
+						printf("Invalid usage of --restore-snapshot!\nCommand should be: \"bkp --restore-snapshot [SNAPSHOT SHA1] [DIRECTORY TO RESTORE TO]\"\n");
 						return;
 					}
-					printf("--restore-snapshot %s :: to be implemented\n", optarg);
+					
+					unsigned char sha1[SHA_DIGEST_LENGTH];
+					hex_to_sha1(argv[opt_idx], sha1);
+
+					restore_snapshot(sha1, argv[opt_idx+1]);
 				}
 				else if (strcmp(cmdline_options[opt_idx].name, "show-file") == 0) {
 					print_sha1_file(optarg);
