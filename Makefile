@@ -7,7 +7,7 @@ LDFLAGS = -lcrypto #-lpthread -lcrypto -lssl -ljansson
 PROG = bkp
 
 # Source files
-SRCS = main.c snapshot.c cache.c tree.c file.c print-file.c sha1-file.c
+SRCS = main.c snapshot.c cache.c tree.c file.c restore.c sha1-file.c print-file.c
 OBJS = $(SRCS:.c=.o)
 
 # Default target
