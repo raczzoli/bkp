@@ -17,8 +17,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <fcntl.h>
+#include <sys/stat.h>
 #include <string.h>
 #include <unistd.h>
+#include <limits.h>
 #include <errno.h>
 #include <openssl/sha.h>
 
@@ -111,3 +113,95 @@ end:
 
 	return 0;
 }
+
+int read_chunks_file(unsigned char *sha1, unsigned char **out_buff, int *num_chunks)
+{
+	int ret = 0;
+	int fd = 0;
+	struct stat stat;
+	char path[PATH_MAX];
+	char sha1_hex[40+1];
+	char *buff;
+	int hdr_len = 7; // "chunks"+\0
+	char hdr[hdr_len];
+	int chunks_size = 0;
+	int bytes;
+
+	sha1_to_hex(sha1, sha1_hex);
+	sprintf(path, ".bkp-data/%s", sha1_hex);
+
+	fd = open(path, O_RDONLY);
+	if (fd < 0) {
+		fprintf(stderr, "Cannot open chunks file: %s!\n", sha1_hex);
+		return -1;
+	}
+
+	if (fstat(fd, &stat)) {
+		fprintf(stderr, "Cannot stat chunks file: %s!\n", sha1_hex);
+		ret = -1;
+		goto end;
+	}
+
+	if (((bytes = read(fd, hdr, hdr_len)) != hdr_len) || 
+		memcmp(hdr, "chunks\0", hdr_len) != 0) {
+		ret = -1;
+		fprintf(stderr, "Invalid or corrupted chunks file!\n");
+		goto end;
+	}
+
+	chunks_size = stat.st_size - hdr_len; 
+
+	if (chunks_size % SHA_DIGEST_LENGTH != 0) {
+		fprintf(stderr, "Invalid or corrupted chunks file! The size of the chunks should be a multiple of %d bytes.\n", SHA_DIGEST_LENGTH);
+		ret = -1;
+		goto end;
+	}
+
+	*num_chunks = chunks_size / SHA_DIGEST_LENGTH;
+	buff = malloc(chunks_size);
+
+	if (!buff) {
+		ret = -ENOMEM;
+		fprintf(stderr, "Error allocating memory for chunks buffer!\n");
+		goto end;
+	}
+
+	int offset = 0;
+	while ( (bytes = read(fd, buff+offset, chunks_size)) > 0 ) 
+		offset += bytes;	
+	
+	if (bytes < 0) {
+		free(buff);
+		ret = -1;
+		goto end;
+	}
+
+	*out_buff = (unsigned char *)buff;
+
+end:
+	close(fd);
+	return ret;
+}
+
+int print_chunks_file(unsigned char *sha1)
+{
+	unsigned char *buff = NULL, *tmp_buff = NULL;
+	int num_chunks = 0;
+	char sha1_hex[40+1];
+
+	if (read_chunks_file(sha1, &buff, &num_chunks)) 
+		return -1;
+	
+	tmp_buff = buff;
+	while(num_chunks > 0) {
+		sha1_to_hex(tmp_buff, sha1_hex);
+		printf("%s\n", sha1_hex);
+
+		tmp_buff += SHA_DIGEST_LENGTH;
+		num_chunks--;
+	}
+	
+	free(buff);
+	return 0;
+}
+
