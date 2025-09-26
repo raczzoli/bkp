@@ -22,6 +22,7 @@
 #include <sys/stat.h>
 #include <openssl/sha.h>
 #include <stdbool.h>
+#include <fcntl.h>
 #include <unistd.h>
 #include <errno.h>
 
@@ -214,28 +215,53 @@ static void free_tree_entries(struct tree *tree)
 	tree->entries_len = 0;
 }
 
-int print_tree_file(int fd, struct stat *stat)
+int print_tree_file(unsigned char *sha1)
 {
 	int ret = 0;
-	char *buff = malloc(stat->st_size);
-	int offset = 0;
+	int fd = 0;
 	char path[PATH_MAX];
+	char *buff = NULL;
+	int offset = 0;
+	struct stat stat;
 	int mode = 0;
 	int consumed = 0;
 	int bytes = 0;
 	char sha1_hex[40+1];
 
-	bytes = read(fd, buff, stat->st_size);
+	sha1_to_hex(sha1, sha1_hex);
+	sprintf(path, ".bkp-data/%s", sha1_hex);
+
+	fd = open(path, O_RDONLY);
+	if (fd < 0) {
+		fprintf(stderr, "Invalid tree file: %s!\n", sha1_hex);
+		return -1;
+	}
+
+	if (fstat(fd, &stat)) {
+		fprintf(stderr, "Cannot stat tree file: %s!\n", sha1_hex);
+		ret = -1;
+		goto end;
+	}
+
+	buff = malloc(stat.st_size);
+	if (!buff)
+		return -ENOMEM;
+
+	bytes = read(fd, buff, stat.st_size);
 	if (bytes < 0) {
 		ret = -1;
 		fprintf(stderr, "Error reading from tree file!\n");
 		goto end;
 	}
 
-	while(*(buff+offset) != '\0') {
+	offset += strlen(buff)+1;
+
+	while(offset < stat.st_size) {
 		// read file mode + path + \0
-		sscanf(buff+offset, "%d %s%n", &mode, path, &consumed);
-		offset += consumed + 1; // \0 too
+		//sscanf(buff+offset, "%d %s%n", &mode, path, &consumed);
+		sscanf(buff+offset, "%d %n", &mode, &consumed);
+		offset += consumed;
+		offset += snprintf(path, PATH_MAX, "%s", buff+offset)+1;
 
 		// read referenced sha1 hash
 		sha1_to_hex((unsigned char *)buff+offset, sha1_hex);
@@ -246,5 +272,6 @@ int print_tree_file(int fd, struct stat *stat)
 
 end:
 	free(buff);
+	close(fd);
 	return ret;
 }
