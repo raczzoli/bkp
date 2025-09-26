@@ -1,4 +1,9 @@
-# TODO
-- When restoring a snapshot it would be very nice to be able to restore only a subtree or even only a file, like:
---restore-snapshot [sha1] [output_dir] [/var/lib/some_folder] or 
---restore-snapshot [sha1] [output_dir] [/home/user/workspace/file1.zip]
+# Project Name
+Project Description
+
+### Column Name
+- [ ] Task title ~3d #type @name yyyy-mm-dd  
+  - [ ] Sub-task or description  
+
+### Completed Column ✓
+- [x] Completed task title  
