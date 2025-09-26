@@ -84,7 +84,7 @@ static int scan_tree(char *path, struct cache *cache, unsigned char *sha1)
 		}
 
 		memset(entry->sha1, 0, SHA_DIGEST_LENGTH);
-		strncpy(entry->name, dirent->d_name, FILENAME_MAX);
+		strncpy(entry->name, dirent->d_name, NAME_MAX+1);
 		entry->name_len = strlen(dirent->d_name);
 		entry->st_mode = sb.st_mode;
 
@@ -191,6 +191,9 @@ int read_tree_file(unsigned char *sha1, struct tree *tree)
 	int bytes = 0;
 	char sha1_hex[40+1];
 	struct tree_entry *entry = NULL;
+
+	tree->entries = NULL;
+	tree->entries_len = 0;
 
 	sha1_to_hex(sha1, sha1_hex);
 	sprintf(path, ".bkp-data/%s", sha1_hex);
