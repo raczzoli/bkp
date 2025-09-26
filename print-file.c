@@ -42,10 +42,10 @@ int print_sha1_file(char *sha1_hex)
 
 	if (strcmp(ftype, "snapshot") == 0) 
 		return print_snapshot_file(sha1);
-	/*
+
 	if (strcmp(ftype, "tree") == 0) 
-		print_tree_file(fd, &stat);
-	*/
+		return print_tree_file(sha1);
+
 	// blob
 	// chunks
 	// etc.
