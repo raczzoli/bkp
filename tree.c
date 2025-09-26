@@ -179,43 +179,7 @@ static int write_tree(struct tree *tree, unsigned char *sha1)
 	return ret;
 }
 
-static int add_tree_entry(struct tree *tree, struct tree_entry *entry)
-{
-	if (!tree->entries) {
-		tree->entries = calloc(100, sizeof(struct tree_entry *));
-	}
-	else {
-		if (tree->entries_len % 100 == 0)
-			tree->entries = realloc(tree->entries, sizeof(struct tree_entry *) * (tree->entries_len + 100));
-	}
-
-	if (!tree->entries) {
-		fprintf(stderr, "Error allocating memory for tree entries!\n");
-		return -ENOMEM;
-	}
-
-	tree->entries[tree->entries_len++] = entry;
-	//printf("Adding entry: %s (%d) to tree (%d children)...\n", entry->name, entry->name_len, tree->entries_len);	
-
-	return 0;
-}
-
-static void free_tree_entries(struct tree *tree)
-{
-	if (tree->entries_len == 0) 
-		return;
-
-	for (int i=0;i<tree->entries_len;i++) {
-		free(tree->entries[i]);
-		tree->entries[i] = NULL;
-	}
-
-	free(tree->entries);
-	tree->entries = NULL;
-	tree->entries_len = 0;
-}
-
-int print_tree_file(unsigned char *sha1)
+int read_tree_file(unsigned char *sha1, struct tree *tree)
 {
 	int ret = 0;
 	int fd = 0;
@@ -223,10 +187,10 @@ int print_tree_file(unsigned char *sha1)
 	char *buff = NULL;
 	int offset = 0;
 	struct stat stat;
-	int mode = 0;
 	int consumed = 0;
 	int bytes = 0;
 	char sha1_hex[40+1];
+	struct tree_entry *entry = NULL;
 
 	sha1_to_hex(sha1, sha1_hex);
 	sprintf(path, ".bkp-data/%s", sha1_hex);
@@ -257,21 +221,85 @@ int print_tree_file(unsigned char *sha1)
 	offset += strlen(buff)+1;
 
 	while(offset < stat.st_size) {
+		entry = malloc(sizeof(struct tree_entry));	
+
 		// read file mode + path + \0
-		//sscanf(buff+offset, "%d %s%n", &mode, path, &consumed);
-		sscanf(buff+offset, "%d %n", &mode, &consumed);
+		sscanf(buff+offset, "%d %n", &entry->st_mode, &consumed);
 		offset += consumed;
-		offset += snprintf(path, PATH_MAX, "%s", buff+offset)+1;
+		offset += snprintf(entry->name, FILENAME_MAX, "%s", buff+offset)+1;
 
 		// read referenced sha1 hash
-		sha1_to_hex((unsigned char *)buff+offset, sha1_hex);
+		memcpy(entry->sha1, buff+offset, 20);
 		offset += SHA_DIGEST_LENGTH;
 
-		printf("%-6o %-50s %s\n", mode, path, sha1_hex);
+		ret = add_tree_entry(tree, entry);
+		if (ret) {
+			free(entry);
+			goto end;
+		}
 	}
 
 end:
 	free(buff);
 	close(fd);
 	return ret;
+
+}
+
+static int add_tree_entry(struct tree *tree, struct tree_entry *entry)
+{
+	if (!tree->entries) {
+		tree->entries = calloc(100, sizeof(struct tree_entry *));
+	}
+	else {
+		if (tree->entries_len % 100 == 0)
+			tree->entries = realloc(tree->entries, sizeof(struct tree_entry *) * (tree->entries_len + 100));
+	}
+
+	if (!tree->entries) {
+		fprintf(stderr, "Error allocating memory for tree entries!\n");
+		return -ENOMEM;
+	}
+
+	tree->entries[tree->entries_len++] = entry;
+
+	return 0;
+}
+
+static void free_tree_entries(struct tree *tree)
+{
+	if (tree->entries_len == 0) 
+		return;
+
+	for (int i=0;i<tree->entries_len;i++) {
+		free(tree->entries[i]);
+		tree->entries[i] = NULL;
+	}
+
+	free(tree->entries);
+	tree->entries = NULL;
+	tree->entries_len = 0;
+}
+
+int print_tree_file(unsigned char *sha1)
+{
+	struct tree tree;
+	struct tree_entry *entry;
+	char sha1_hex[40+1];
+
+	tree.entries = NULL;
+	tree.entries_len = 0;
+
+	if (read_tree_file(sha1, &tree)) 
+		return -1;
+
+	if (tree.entries_len > 0)
+		for (int i=0;i<tree.entries_len;i++) {
+			entry = tree.entries[i];
+			sha1_to_hex(entry->sha1, sha1_hex);
+			printf("%-8o %-50s %s\n", entry->st_mode, entry->name, sha1_hex);
+		}
+
+	free_tree_entries(&tree);
+	return 0;
 }

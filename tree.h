@@ -31,7 +31,6 @@ enum tree_entry_type {
 };
 
 struct tree_entry {
-	uint8_t type;
 	int st_mode;
 	unsigned char sha1[SHA_DIGEST_LENGTH];
 	int name_len;
@@ -44,6 +43,7 @@ typedef struct tree {
 } tree_t;
 
 int create_tree(char *path, struct cache *cache, unsigned char *sha1);
+int read_tree_file(unsigned char *sha1, struct tree *tree);
 int print_tree_file(unsigned char *sha1);
 
 #endif 
