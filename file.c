@@ -114,6 +114,57 @@ end:
 	return 0;
 }
 
+int read_blob(unsigned char *sha1, char **out_buff, size_t *out_size)
+{
+	int fd = 0;
+	int ret = 0;
+	int offset = 0;
+	int bytes = 0;
+	struct stat stat;
+	char path[PATH_MAX];
+	char sha1_hex[40+1];
+	int hdr_len = 5; // "blob"+\0
+	char hdr[hdr_len];
+
+	sha1_to_hex(sha1, sha1_hex);
+	sprintf(path, ".bkp-data/%s", sha1_hex); 
+
+	fd = open(path, O_RDONLY);
+	if (fd < 0) {
+		fprintf(stderr, "Cannot open blob file: %s - %s!\n", sha1_hex, strerror(errno));
+		return -1;
+	}
+
+	if (fstat(fd, &stat)) {
+		fprintf(stderr, "Cannot stat blob file: %s!\n", sha1_hex);
+		ret = -1;
+		goto end;
+	}
+
+	if (((bytes = read(fd, hdr, hdr_len)) != hdr_len) || 
+		memcmp(hdr, "blob\0", hdr_len) != 0) {
+		ret = -1;
+		fprintf(stderr, "Invalid or corrupted blob file!\n");
+		goto end;
+	}
+
+	*out_size = stat.st_size - hdr_len;
+	*out_buff = malloc(*out_size);
+
+	while ( (bytes = read(fd, (*out_buff)+offset, *out_size)) > 0 ) 
+		offset += bytes;	
+	
+	if (bytes < 0) {
+		free(*out_buff);
+		ret = -1;
+		goto end;
+	}
+
+end:
+	close(fd);
+	return ret;
+}
+
 int read_chunks_file(unsigned char *sha1, unsigned char **out_buff, int *num_chunks)
 {
 	int ret = 0;
@@ -121,7 +172,6 @@ int read_chunks_file(unsigned char *sha1, unsigned char **out_buff, int *num_chu
 	struct stat stat;
 	char path[PATH_MAX];
 	char sha1_hex[40+1];
-	char *buff;
 	int hdr_len = 7; // "chunks"+\0
 	char hdr[hdr_len];
 	int chunks_size = 0;
@@ -158,25 +208,24 @@ int read_chunks_file(unsigned char *sha1, unsigned char **out_buff, int *num_chu
 	}
 
 	*num_chunks = chunks_size / SHA_DIGEST_LENGTH;
-	buff = malloc(chunks_size);
+	*out_buff = malloc(chunks_size);
 
-	if (!buff) {
+	if (!*out_buff) {
 		ret = -ENOMEM;
 		fprintf(stderr, "Error allocating memory for chunks buffer!\n");
 		goto end;
 	}
 
 	int offset = 0;
-	while ( (bytes = read(fd, buff+offset, chunks_size)) > 0 ) 
+	while ( (bytes = read(fd, (*out_buff)+offset, chunks_size)) > 0 ) 
 		offset += bytes;	
 	
 	if (bytes < 0) {
-		free(buff);
+		free(*out_buff);
 		ret = -1;
 		goto end;
 	}
 
-	*out_buff = (unsigned char *)buff;
 
 end:
 	close(fd);
