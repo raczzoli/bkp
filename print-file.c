@@ -7,8 +7,9 @@
 
 #include "print-file.h"
 #include "tree.h"
-#include "sha1-file.h"
+#include "file.h"
 #include "snapshot.h"
+#include "sha1-file.h"
 
 int print_sha1_file(char *sha1_hex)
 {
@@ -38,7 +39,7 @@ int print_sha1_file(char *sha1_hex)
 	}
 	close(fd);
 
-	printf("----------- %s -----------\n", ftype);
+	printf("############################### %s ###############################\n", ftype);
 
 	if (strcmp(ftype, "snapshot") == 0) 
 		return print_snapshot_file(sha1);
@@ -46,6 +47,8 @@ int print_sha1_file(char *sha1_hex)
 	if (strcmp(ftype, "tree") == 0) 
 		return print_tree_file(sha1);
 
+	if (strcmp(ftype, "chunks") == 0) 
+		return print_chunks_file(sha1);
 	// blob
 	// chunks
 	// etc.
