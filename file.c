@@ -23,7 +23,7 @@
 #include <limits.h>
 #include <errno.h>
 #include <openssl/sha.h>
-
+#include <zconf.h>
 #include "file.h"
 #include "sha1-file.h"
 
@@ -90,9 +90,9 @@ end:
 
 static int write_blob(char *buffer, int size, unsigned char *sha1)
 {
-	int ret = 0;
 	int offset = 0;
-	char *buff = malloc(100 + size);
+	int buff_len = 100+size;
+	char *buff = malloc(buff_len);
 
 	if (!buff)
 		return -ENOMEM;
@@ -102,16 +102,9 @@ static int write_blob(char *buffer, int size, unsigned char *sha1)
 	memcpy(buff+offset, buffer, size);
 	offset += size;
 
-	SHA1((const unsigned char *)buff, offset, sha1);
+	SHA1((const unsigned char *)buff, buff_len, sha1);
 
-	ret = write_sha1_file(sha1, buff, offset);
-	if (ret)
-		goto end;
-
-end:
-	free(buff);
-
-	return 0;
+	return write_sha1_file_async(sha1, buff, buff_len);
 }
 
 int read_blob(unsigned char *sha1, char **out_buff, size_t *out_size)
