@@ -1,13 +1,13 @@
 # Compiler and flags
 CC = gcc
 CFLAGS = -std=gnu99 -Wall -O2 -Wextra -g
-LDFLAGS = -lcrypto #-lpthread -lcrypto -lssl -ljansson
+LDFLAGS = -lcrypto -lz#-lpthread -lcrypto -lssl -ljansson
 
 # Target executable
 PROG = bkp
 
 # Source files
-SRCS = main.c snapshot.c cache.c tree.c file.c restore.c sha1-file.c print-file.c
+SRCS = main.c snapshot.c cache.c tree.c file.c restore.c sha1-file.c print-file.c worker.c
 OBJS = $(SRCS:.c=.o)
 
 # Default target
