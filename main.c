@@ -61,15 +61,20 @@ static void parse_cmdline_args(int argc, char **argv)
 					list_snapshots(limit);
 				}
 				else if (strcmp(cmdline_options[opt_idx].name, "restore-snapshot") == 0) {
-					if ((argc - opt_idx) != 2) {
-						printf("Invalid usage of --restore-snapshot!\nCommand should be: \"bkp --restore-snapshot [SNAPSHOT SHA1] [DIRECTORY TO RESTORE TO]\"\n");
+					if (argc < 4) {
+						printf("Invalid usage of --restore-snapshot!\n"
+								"Command should be: \""
+								"bkp --restore-snapshot [SHA1] [OUTPUT_DIR] [optional: SUB_PATH]\"\n");
 						return;
 					}
 					
+					char *sha1_hex = argv[opt_idx];
+					char *out_path = argv[opt_idx+1];
+					char *sub_path = argc > 4 ? argv[opt_idx+2] : NULL;
 					unsigned char sha1[SHA_DIGEST_LENGTH];
-					hex_to_sha1(argv[opt_idx], sha1);
 
-					restore_snapshot(sha1, argv[opt_idx+1]);
+					hex_to_sha1(sha1_hex, sha1);
+					restore_snapshot(sha1, out_path, sub_path);
 				}
 				else if (strcmp(cmdline_options[opt_idx].name, "show-file") == 0) {
 					print_sha1_file(optarg);
@@ -94,9 +99,10 @@ static void print_help()
     printf("Usage: bkp [OPTIONS]\n");
     printf("A lightweight and space efficient (incremental) file-level backup utility for Linux.\n\n");
     printf("Options:\n");
-    printf("  --create-snapshot                               Create a new snapshot of the backed up directory\n");
-    printf("  --snapshots [LIMIT]                             Print a list of snapshots done so far\n");
-    printf("  --restore-snapshot [SHA1] [OUTPUT_DIR]          Restores the snapshot identified by the passed SHA1 to OUTPUT_DIR\n");
+    printf("  --create-snapshot                                   Create a new snapshot of the backed up directory\n");
+    printf("  --snapshots [LIMIT]                                 Print a list of snapshots done so far\n");
+    printf("  --restore-snapshot [SHA1] [OUTPUT_DIR] [SUB_PATH]   Restores the snapshot with SHA1 to OUTPUT_DIR with the optional possibility\n");
+    printf("                                                      to restore only a SUB_PATH of the snapshot like /home/user/only_this_file \n");
 	printf("\n");
 	printf("  -h, --help                                      Show this help message and exit\n");
 	printf("\n");
