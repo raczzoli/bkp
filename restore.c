@@ -97,8 +97,8 @@ static int restore_tree(unsigned char *sha1, char *out_path, char *sub_path, int
 			 *    strncmp(full_out_path, sub_path, full_out_path_len)
 			 *    meaning full_out_path is a prefix of sub_path
 			 */
-			if (strncmp(full_out_path, sub_path, sub_path_len) != 0 &&
-				strncmp(full_out_path, sub_path, full_out_path_len) != 0)
+			if (memcmp(full_out_path, sub_path, sub_path_len) != 0 &&
+				memcmp(full_out_path, sub_path, full_out_path_len) != 0)
 				continue;
 		}
 
