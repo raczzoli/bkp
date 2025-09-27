@@ -15,16 +15,20 @@
  */
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <limits.h>
 #include <errno.h>
 #include <openssl/sha.h>
 #include <fcntl.h>
 #include <string.h>
 #include <unistd.h>
+#include <zlib.h>
 
-#include "sha1.h"
+#include "sha1-file.h"
+#include "worker.h"
 
 static int hexchar_to_int(char c);
+static int write_async_cb(void *data);
 
 int sha1_to_hex(unsigned char *sha1, char* out_hex)
 {
@@ -71,12 +75,37 @@ int sha1_is_valid(unsigned char *sha1)
 	return 0;
 }
 
+int write_sha1_file_async(unsigned char *sha1, char *buffer, int len)
+{
+	int ret = 0;
+	struct write_job_data *data = malloc(sizeof(struct write_job_data));
+
+	if (!data) {
+		fprintf(stderr, "Error allocating memory for write job data structure!\n");
+		return -ENOMEM;
+	}
+
+	memcpy(data->sha1, sha1, SHA_DIGEST_LENGTH);
+	data->buff = buffer;
+	data->len = len;
+
+	ret = reg_worker_job(data, write_async_cb);
+	if (ret) {
+		free(data);
+		return -1;
+	}
+
+	return 0;		
+}
+
 int write_sha1_file(unsigned char *sha1, char *buffer, int len)
 {
 	int ret = 0;
 	int written = 0;
 	char path[PATH_MAX];
 	char sha1_hex[40+1];
+	char *compr_buff = NULL;
+	uLongf compr_len = 0;
 
 	sha1_to_hex(sha1, sha1_hex);
 
@@ -86,19 +115,47 @@ int write_sha1_file(unsigned char *sha1, char *buffer, int len)
 	if (fd < 0) 
 		return errno == EEXIST ? 0 : fd;
 
-	written = write(fd, buffer, len);
+	if (len > 0) {
+		compr_len = compressBound(len);
+		compr_buff = malloc(compr_len);
 
-	if (written != len) {
-		fprintf(stderr, "Error writing to file %s!\n", path);
-		ret = -1;
-		goto ret;
+		if (!compr_buff) {
+			ret = -1;
+			goto ret;
+		}
+
+		if (compress((Bytef *)compr_buff, &compr_len, (const Bytef *)buffer, len) != Z_OK) {
+			fprintf(stderr, "Compression of blob file failed!\n");
+			ret = -1;
+			goto ret;
+		}
+
+		written = write(fd, compr_buff, compr_len);
+
+		if (written != (int)compr_len) {
+			fprintf(stderr, "Error writing to file %s!\n", path);
+			ret = -1;
+			goto ret;
+		}
 	}
 
 ret:
 	if (fd)
 		close(fd);
 
+	if (compr_buff)
+		free(compr_buff);
+
 	return ret;
 }
 
+static int write_async_cb(void *data)
+{
+	struct write_job_data *jb_data = (struct write_job_data *) data;
+	int ret = write_sha1_file(jb_data->sha1, jb_data->buff, jb_data->len);
+		
+	free(jb_data->buff);
+	free(jb_data);
 
+	return ret;
+}
