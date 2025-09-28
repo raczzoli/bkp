@@ -82,7 +82,7 @@ int create_snapshot()
 
 	printf("done\n");
 
-	ret = create_tree("/home/rng89/", cache, tree_sha1);
+	ret = create_tree("./", cache, tree_sha1);
 
 	if (ret) {
 		fprintf(stderr, "Error generating tree (code: %d)!\n", ret);
