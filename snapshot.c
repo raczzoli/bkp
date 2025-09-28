@@ -189,14 +189,19 @@ int read_snapshot_file(unsigned char *sha1, struct snapshot *snapshot)
 {
 	int ret = 0;
 	char *buff = NULL;
-	size_t buff_size = 0;
+	int buff_len = 0;
 	int offset = 0;
 
-	ret = read_sha1_file(sha1, &buff, &buff_size);
+	ret = read_sha1_file(sha1, &buff, &buff_len);
 	if (ret)
 		return ret;
 
 	memcpy(snapshot->sha1, sha1, SHA_DIGEST_LENGTH);
+
+	/*
+	 * Skipping the snapshot file header ("snapshot\0")
+	 */
+	offset += strlen(buff)+1;
 
 	while(*(buff+offset) != '\0') {
 		if (strcmp(buff+offset, "parent ") == 0) {
@@ -225,6 +230,7 @@ int read_snapshot_file(unsigned char *sha1, struct snapshot *snapshot)
 		}
 	}
 
+	free(buff);
 	return ret;
 }
 
