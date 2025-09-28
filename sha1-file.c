@@ -22,6 +22,7 @@
 #include <fcntl.h>
 #include <string.h>
 #include <unistd.h>
+#include <sys/stat.h>
 #include <zlib.h>
 
 #include "sha1-file.h"
@@ -29,6 +30,7 @@
 
 static int hexchar_to_int(char c);
 static int write_async_cb(void *data);
+static int inflate_sha1_file(char *in_buff, size_t in_size, char **out_buff, size_t *out_size);
 
 int sha1_to_hex(unsigned char *sha1, char* out_hex)
 {
@@ -146,6 +148,142 @@ ret:
 	if (compr_buff)
 		free(compr_buff);
 
+	return ret;
+}
+
+int read_sha1_file(unsigned char *sha1, char **out_buff, size_t *out_size)
+{
+	int ret = 0;
+	int bytes = 0;
+	struct stat stat;
+	char sha1_hex[40+1];
+	char sha1_check_hex[40+1];
+	char path[PATH_MAX];
+	char *buff = NULL;
+
+	sha1_to_hex(sha1, sha1_hex);
+	sprintf(path, ".bkp-data/%s", sha1_hex);
+
+	int fd = open(path, O_RDONLY);
+	if (fd < 0) {
+		fprintf(stderr, "Unable to open SHA1 file: %s!\n", sha1_hex);
+		return -1;
+	}
+
+	if (fstat(fd, &stat)) {
+		fprintf(stderr, "Cannot stat SHA1 file: %s!\n", sha1_hex);
+		ret = -1;
+		goto end;
+	}
+
+	buff = malloc(stat.st_size);
+	if (!buff) {
+		ret = -ENOMEM;
+		fprintf(stderr, "Error allocating memory for SHA1 file content: %s\n", sha1_hex);
+		goto end;
+	}
+
+	bytes = read(fd, buff, stat.st_size);
+
+	/*
+	 * TODO: this condition will need to be replaced with a 
+	 * while(bytes = read()...) just like we did in other places
+	 */
+	if (bytes != stat.st_size) { 
+		ret = -1;
+		fprintf(stderr, "Error reading from SHA1 file: %s!\n", sha1_hex);
+		goto end;
+	}
+
+	ret = inflate_sha1_file(buff, bytes, out_buff, out_size);
+
+	if (ret == 0) {
+		unsigned char sha1_check[SHA_DIGEST_LENGTH];
+		SHA1((const unsigned char *)*out_buff, *out_size, sha1_check);
+
+		if (memcmp(sha1_check, sha1, SHA_DIGEST_LENGTH) != 0) {
+			ret = -1;
+
+			if (*out_buff)
+				free(*out_buff);
+
+			*out_size = 0;
+
+			sha1_to_hex(sha1_check, sha1_check_hex);
+			fprintf(stderr, "SHA1 file corrupted! Expected \"%s\" but computed \"%s\"!\n", sha1_hex, sha1_check_hex);
+			goto end;
+		}
+	}
+
+end:
+	if (buff)
+		free(buff);
+
+	close(fd);
+	return ret;
+}
+
+static int inflate_sha1_file(char *in_buff, size_t in_size, char **out_buff, size_t *out_size)
+{
+	int ret = 0;
+	unsigned char *buff = NULL;
+	int chunk_size = 1024 * 1024; // 1MB chunks
+	int offset = 0;
+
+	z_stream strm;
+	strm.zalloc = Z_NULL;
+	strm.zfree  = Z_NULL;
+	strm.opaque = Z_NULL;
+	strm.avail_in = in_size;
+	strm.next_in  = (Bytef *)in_buff;
+
+	ret = inflateInit(&strm);
+	if (ret != Z_OK) {
+		fprintf(stderr, "Error inflating SHA1 file!\n");
+		return -1;
+	}
+		
+	buff = malloc(chunk_size);
+	if (!buff) {
+		ret = -ENOMEM;
+		goto end;
+	}
+
+	do {
+		if (!buff) 
+			buff = malloc(chunk_size);
+		else if (offset % chunk_size == 0)
+			buff = realloc(buff, offset + chunk_size);
+
+		if (!buff) {
+			ret = -ENOMEM;
+			fprintf(stderr, "Error allocating memory for zstream chunk!\n");
+			goto end;
+		}
+
+		strm.avail_out = chunk_size;
+		strm.next_out = buff + offset;
+		
+		ret = inflate(&strm, Z_NO_FLUSH);
+		switch(ret) {
+			case Z_STREAM_ERROR:
+			case Z_DATA_ERROR:
+			case Z_MEM_ERROR:
+			case Z_NEED_DICT:
+				ret = -1;
+				free(buff);
+				goto end;
+		}
+		
+		offset += chunk_size - strm.avail_out;
+	} while (ret != Z_STREAM_END);
+
+	*out_buff = (char *) buff;
+	*out_size = offset;
+	ret = 0;
+
+end:
+	inflateEnd(&strm);
 	return ret;
 }
 
