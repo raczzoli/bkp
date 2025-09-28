@@ -5,6 +5,7 @@ Space efficient incremental file-level backup utility for Linux
 - [x] When restoring a snapshot it would be very nice to be able to restore only a subtree or even only a file, like:  
       --restore-snapshot [sha1] [output_dir] [/var/lib/some_folder] or   
       --restore-snapshot [sha1] [output_dir] [/home/user/workspace/file1.zip]  
+- [ ] Handle file updates - for now we only check if file is modified but don`t do anything with it (save modified chunks, update cache file)
 - [ ] Add check command to verify all stored objects (rehash & compare SHA1).  
 - [ ] Improve error handling (separate fatal vs. warning cases).  
 - [ ] Add basic progress reporting (e.g., “Processed 124/5000 files, 3.2 GB”).  
