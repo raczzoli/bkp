@@ -195,48 +195,26 @@ static int write_tree(struct tree *tree, unsigned char *sha1)
 int read_tree_file(unsigned char *sha1, struct tree *tree)
 {
 	int ret = 0;
-	int fd = 0;
-	char path[PATH_MAX];
 	char *buff = NULL;
+	int buff_len = 0;
 	int offset = 0;
-	struct stat stat;
 	int consumed = 0;
-	int bytes = 0;
-	char sha1_hex[40+1];
 	struct tree_entry *entry = NULL;
 
 	tree->entries = NULL;
 	tree->entries_len = 0;
 
-	sha1_to_hex(sha1, sha1_hex);
-	sprintf(path, ".bkp-data/%s", sha1_hex);
+	ret = read_sha1_file(sha1, &buff, &buff_len);
 
-	fd = open(path, O_RDONLY);
-	if (fd < 0) {
-		fprintf(stderr, "Invalid tree file: %s!\n", sha1_hex);
+	if (ret)
 		return -1;
-	}
 
-	if (fstat(fd, &stat)) {
-		fprintf(stderr, "Cannot stat tree file: %s!\n", sha1_hex);
-		ret = -1;
-		goto end;
-	}
-
-	buff = malloc(stat.st_size);
-	if (!buff)
-		return -ENOMEM;
-
-	bytes = read(fd, buff, stat.st_size);
-	if (bytes < 0) {
-		ret = -1;
-		fprintf(stderr, "Error reading from tree file!\n");
-		goto end;
-	}
-
+	/*
+	 * Skipping the tree file header ("tree\0")
+	 */
 	offset += strlen(buff)+1;
 
-	while(offset < stat.st_size) {
+	while(offset < buff_len) {
 		entry = malloc(sizeof(struct tree_entry));	
 
 		// read file mode + path + \0
@@ -257,7 +235,6 @@ int read_tree_file(unsigned char *sha1, struct tree *tree)
 
 end:
 	free(buff);
-	close(fd);
 	return ret;
 
 }
