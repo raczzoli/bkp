@@ -5,10 +5,11 @@
 ## Usage examples
 
 - **Create a new snapshot of the current directory:**  
-Regardless if it is the initial backup or the 100th incremental one, this same command is used. If it is the first backup, --create-snapshot will create all the necessary files and data directories without the need to execute any other --init commands.
 ```bash
 bkp --create-snapshot
-```
+```  
+Regardless if it is the initial backup or the 100th incremental one, this same command is used. If it is the first backup, --create-snapshot will create all the necessary files and data directories without the need to execute any other --init commands.
+
 
 - **List existing snapshots, optionally limiting the number shown:**
 ```bash
