@@ -188,41 +188,13 @@ static int read_last_sha1(unsigned char *sha1)
 int read_snapshot_file(unsigned char *sha1, struct snapshot *snapshot)
 {
 	int ret = 0;
-	char sha1_hex[40+1];
-	char path[PATH_MAX];
-	struct stat stat;
 	char *buff = NULL;
+	size_t buff_size = 0;
 	int offset = 0;
-	int bytes = 0;
 
-	sha1_to_hex(sha1, sha1_hex);
-	sprintf(path, ".bkp-data/%s", sha1_hex);
-
-	int fd = open(path, O_RDONLY);
-	if (fd < 0) {
-		fprintf(stderr, "Invalid snapshot file: %s!\n", sha1_hex);
-		return -1;
-	}
-
-	if (fstat(fd, &stat)) {
-		fprintf(stderr, "Cannot stat snapshot file: %s!\n", sha1_hex);
-		ret = -1;
-		goto end;
-	}
-
-	buff = malloc(stat.st_size);
-	if (!buff) {
-		ret = -ENOMEM;
-		fprintf(stderr, "Error allocating memory for snapshot file: %s\n", sha1_hex);
-		goto end;
-	}
-
-	bytes = read(fd, buff, stat.st_size);
-	if (bytes < 0) {
-		ret = -1;
-		fprintf(stderr, "Error reading from snapshot file: %s!\n", sha1_hex);
-		goto end;
-	}
+	ret = read_sha1_file(sha1, &buff, &buff_size);
+	if (ret)
+		return ret;
 
 	memcpy(snapshot->sha1, sha1, SHA_DIGEST_LENGTH);
 
@@ -230,7 +202,6 @@ int read_snapshot_file(unsigned char *sha1, struct snapshot *snapshot)
 		if (strcmp(buff+offset, "parent ") == 0) {
 			offset += 8; // "parent \0"
 			memcpy(snapshot->parent_sha1, buff+offset, SHA_DIGEST_LENGTH);
-			sha1_to_hex((unsigned char *)buff+offset, sha1_hex);
 			offset += SHA_DIGEST_LENGTH;
 		}
 		else if (strcmp(buff+offset, "tree ") == 0) {
@@ -254,8 +225,6 @@ int read_snapshot_file(unsigned char *sha1, struct snapshot *snapshot)
 		}
 	}
 
-end:
-	close(fd);
 	return ret;
 }
 
