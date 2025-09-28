@@ -32,7 +32,7 @@ static int jobs_len = 0;
 static int add_job(struct worker_job *job);
 static struct worker_job *get_next_job();
 
-void *worker(void *arg)
+void *worker()
 {
 	struct worker_job *job = NULL;
 
