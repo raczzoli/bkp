@@ -30,7 +30,7 @@
 
 static int hexchar_to_int(char c);
 static int write_async_cb(void *data);
-static int inflate_sha1_file(char *in_buff, size_t in_size, char **out_buff, size_t *out_size);
+static int inflate_sha1_file(char *in_buff, size_t in_size, char **out_buff, int *out_size);
 
 int sha1_to_hex(unsigned char *sha1, char* out_hex)
 {
@@ -151,7 +151,7 @@ ret:
 	return ret;
 }
 
-int read_sha1_file(unsigned char *sha1, char **out_buff, size_t *out_size)
+int read_sha1_file(unsigned char *sha1, char **out_buff, int *out_size)
 {
 	int ret = 0;
 	int bytes = 0;
@@ -223,7 +223,7 @@ end:
 	return ret;
 }
 
-static int inflate_sha1_file(char *in_buff, size_t in_size, char **out_buff, size_t *out_size)
+static int inflate_sha1_file(char *in_buff, size_t in_size, char **out_buff, int *out_size)
 {
 	int ret = 0;
 	unsigned char *buff = NULL;

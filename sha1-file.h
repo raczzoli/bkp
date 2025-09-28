@@ -30,7 +30,7 @@ int hex_to_sha1(char *hex, unsigned char *out_sha1);
 
 int write_sha1_file(unsigned char *sha1, char *buffer, int len);
 int write_sha1_file_async(unsigned char *sha1, char *buffer, int len);
-int read_sha1_file(unsigned char *sha1, char **out_buff, size_t *out_size);
+int read_sha1_file(unsigned char *sha1, char **out_buff, int *out_size);
 
 int sha1_is_valid(unsigned char *sha1);
 
