@@ -21,7 +21,6 @@
 #include <sys/stat.h>
 #include <dirent.h>
 #include <errno.h>
-#include <stdbool.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/mman.h>
@@ -58,7 +57,7 @@ struct cache *load_cache()
 		goto err;
 	}
 	
-	cmap = mmap(NULL, cstat.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
+	cmap = mmap(NULL, cstat.st_size, PROT_READ | PROT_WRITE, MAP_PRIVATE, fd, 0);
 	if (cmap == MAP_FAILED) {
 		fprintf(stderr, "mmap failed while mapping filecache into memory!\n");
 		goto err;
@@ -98,7 +97,6 @@ int update_cache(struct cache *cache)
 
 	if (cache->entries_len > 0) {
 		for (int i=0;i<cache->entries_len;i++) {
-			//printf("%s\n", cache->entries[i]->path);
 			struct cache_entry *c = cache->entries[i];
 			size = sizeof(struct cache_entry) + c->path_len + 1;		
 			write(fd, c, size);
@@ -113,7 +111,7 @@ int update_cache(struct cache *cache)
 
 int find_cache_entry_insert_idx(struct cache *cache, char *path)
 {
-	return find_cache_entry(cache, path, true);
+	return find_cache_entry(cache, path, 1);
 }
 
 int find_cache_entry(struct cache *cache, char *path, int ret_insert_idx)
@@ -138,17 +136,24 @@ int find_cache_entry(struct cache *cache, char *path, int ret_insert_idx)
 	return ret_insert_idx ? low : -1;
 }
 
-bool cache_entry_changed(struct cache_entry *entry, struct stat *stat)
+int cache_entry_changed(struct cache_entry *entry, struct stat *stat)
 {
+	int change = 0;
 	if ((entry->st_mtim.tv_sec != stat->st_mtim.tv_sec) || 
 		(entry->st_mtim.tv_nsec != stat->st_mtim.tv_nsec) || 
 		(entry->st_ctim.tv_sec != stat->st_ctim.tv_sec) || 
 		(entry->st_ctim.tv_nsec != stat->st_ctim.tv_nsec)) {
-	
-		return true;
+		
+		change |= CE_TIME_CHANGED;
 	}
 
-	return false;
+	if (entry->st_mode != stat->st_mode)
+		change |= CE_MODE_CHANGED;
+
+	if (entry->st_size != stat->st_size)
+		change |= CE_SIZE_CHANGED;
+
+	return change;
 }
 
 int add_cache_entry(struct cache *cache, struct cache_entry *entry)

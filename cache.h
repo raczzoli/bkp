@@ -21,8 +21,11 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <limits.h>
-#include <stdbool.h>
 #include <openssl/sha.h>
+
+#define CE_MODE_CHANGED 0x01
+#define CE_SIZE_CHANGED 0x02
+#define CE_TIME_CHANGED 0x04
 
 struct cache_entry {
 	mode_t st_mode;
@@ -43,7 +46,7 @@ int update_cache(struct cache *cache);
 struct cache *load_cache();
 int find_cache_entry(struct cache *cache, char *path, int ret_insert_idx);
 int find_cache_entry_insert_idx(struct cache *cache, char *path);
-bool cache_entry_changed(struct cache_entry *entry, struct stat *stat);
+int cache_entry_changed(struct cache_entry *entry, struct stat *stat);
 int add_cache_entry(struct cache *cache, struct cache_entry *entry);
 
 
