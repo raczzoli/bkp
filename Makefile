@@ -25,6 +25,10 @@ $(PROG): $(OBJS)
 clean:
 	rm -f $(OBJS) $(PROG)
 
+install: 
+	sudo rm -f /usr/bin/bkp
+	sudo cp ./bkp /usr/bin/bkp
+	sudo chmod +X /usr/bin/bkp
 
 # Phony targets
 .PHONY: all clean
