@@ -109,7 +109,7 @@ int write_sha1_file(unsigned char *sha1, char *buffer, int len)
 
 	sha1_to_hex(sha1, sha1_hex);
 
-	sprintf(path, "./.bkp-data/%s", sha1_hex);
+	sprintf(path, ".bkp-data/%s", sha1_hex);
 
 	int fd = open(path, O_WRONLY | O_CREAT | O_EXCL, 0666);
 	if (fd < 0) 
