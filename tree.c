@@ -94,14 +94,28 @@ static int scan_tree(char *path, struct cache *cache, unsigned char *sha1)
 				goto end;
 		} 
 		else if (S_ISREG(sb.st_mode)) {
-			int path_len = strlen(full_path);
+			int path_len = strlen(full_path);	
 			int c_idx = find_cache_entry(cache, full_path, 0);
+
 			if (c_idx > -1) {
 				c_entry = cache->entries[c_idx];
 				
-				bool changed = cache_entry_changed(c_entry, &sb);
+				int changed = cache_entry_changed(c_entry, &sb);
 				if (changed) {
-					// TODO update cache entry
+					if (changed & CE_MODE_CHANGED) 
+						c_entry->st_mode = sb.st_mode;
+
+					if (changed & CE_TIME_CHANGED) {
+						c_entry->st_mtim.tv_sec = sb.st_mtim.tv_sec;
+						c_entry->st_mtim.tv_nsec = sb.st_mtim.tv_nsec;
+						c_entry->st_ctim.tv_sec = sb.st_ctim.tv_sec;
+						c_entry->st_ctim.tv_nsec = sb.st_ctim.tv_nsec;	
+					}
+					
+					if (changed & CE_SIZE_CHANGED) {
+						c_entry->st_size = sb.st_size;
+						// TODO update file
+					}
 				}
 			}
 			else {
