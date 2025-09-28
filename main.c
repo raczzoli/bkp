@@ -19,6 +19,10 @@
 #include <string.h>
 #include <getopt.h>
 #include <openssl/sha.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <dirent.h>
+
 
 #include "snapshot.h"
 #include "restore.h"
@@ -34,16 +38,35 @@ static struct option cmdline_options[] = {
 	{0, 0, 0, 0}
 };
 
+static int init();
 static void print_help();
-static void parse_cmdline_args(int argc, char **argv);
+static int handle_cmdline_args(int argc, char **argv);
 
 int main(int argc, char **argv)
 {
-	parse_cmdline_args(argc, argv);
+	if (init())
+		return -1;
+
+	if (handle_cmdline_args(argc, argv))
+		return -1;
+
 	return 0;
 }
 
-static void parse_cmdline_args(int argc, char **argv)
+static int init()
+{
+	DIR *dir = opendir(".bkp-data");
+	if (dir) 
+		closedir(dir);
+	else {
+		printf(".bkp-data doesn`t exist, creating it...\n");
+		mkdir(".bkp-data", 0755);
+	}
+
+	return 0;
+}
+
+static int handle_cmdline_args(int argc, char **argv)
 {
 	int opt_idx = 0;
 	int opt = 0;
@@ -52,20 +75,20 @@ static void parse_cmdline_args(int argc, char **argv)
 		switch(opt) {
 			case 0:
 				if (strcmp(cmdline_options[opt_idx].name, "create-snapshot") == 0) {
-					create_snapshot();
+					return create_snapshot();
 				}
 				else if (strcmp(cmdline_options[opt_idx].name, "snapshots") == 0) {
 					int limit = (opt_idx + 1) < argc ? atoi(argv[opt_idx+1]) : 10; 
 					printf("Listing a maximum number of %d created snapshots.\n"
 							"To change the limit use \"bkp --snapshots [LIMIT]\"\n\n", limit);
-					list_snapshots(limit);
+					return list_snapshots(limit);
 				}
 				else if (strcmp(cmdline_options[opt_idx].name, "restore-snapshot") == 0) {
 					if (argc < 4) {
 						printf("Invalid usage of --restore-snapshot!\n"
 								"Command should be: \""
 								"bkp --restore-snapshot [SHA1] [OUTPUT_DIR] [optional: SUB_PATH]\"\n");
-						return;
+						return -1;
 					}
 					
 					char *sha1_hex = argv[opt_idx];
@@ -74,10 +97,10 @@ static void parse_cmdline_args(int argc, char **argv)
 					unsigned char sha1[SHA_DIGEST_LENGTH];
 
 					hex_to_sha1(sha1_hex, sha1);
-					restore_snapshot(sha1, out_path, sub_path);
+					return restore_snapshot(sha1, out_path, sub_path);
 				}
 				else if (strcmp(cmdline_options[opt_idx].name, "show-file") == 0) {
-					print_sha1_file(optarg);
+					return print_sha1_file(optarg);
 				}
 
 			break;
@@ -91,6 +114,8 @@ static void parse_cmdline_args(int argc, char **argv)
 				printf("Invalid command line option!\n");
 		}
 	}
+
+	return 0;
 }
 
 static void print_help()
