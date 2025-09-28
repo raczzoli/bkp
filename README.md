@@ -4,7 +4,7 @@
 
 ## Example commands
 
-- **Create a new snapshot of the current filesystem state:**
+- **Create a new snapshot of the current directory:**
 ```bash
 bkp --create-snapshot
 ```
