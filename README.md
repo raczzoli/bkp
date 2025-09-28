@@ -2,7 +2,7 @@
 
 `bkp` is a command-line tool designed to perform incremental backups at the file level on Linux systems. It aims to minimize storage usage while keeping track of changes across multiple snapshots.
 
-## Example commands
+## Usage examples
 
 - **Create a new snapshot of the current directory:**
 ```bash
