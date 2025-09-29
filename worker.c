@@ -23,6 +23,8 @@
 
 static int running = 0;
 static pthread_mutex_t running_lock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_cond_t running_cond = PTHREAD_COND_INITIALIZER;
+
 static pthread_mutex_t jobs_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t jobs_cond = PTHREAD_COND_INITIALIZER;
 
@@ -45,6 +47,10 @@ void *worker()
 
 	pthread_mutex_lock(&running_lock);
 	running--;
+
+	if (running == 0) 
+		pthread_cond_broadcast(&running_cond);
+
 	pthread_mutex_unlock(&running_lock);
 
 	return NULL;
@@ -104,6 +110,16 @@ static struct worker_job *get_next_job()
 	return job;
 }
 
+int get_nr_running_workers()
+{
+	int tmp = 0;
+	pthread_mutex_lock(&running_lock);
+	tmp = running;
+	pthread_mutex_unlock(&running_lock);	
+
+	return tmp;
+}
+
 static int add_job(struct worker_job *job)
 {
 	int ret = 0;
@@ -131,4 +147,16 @@ end:
 	pthread_mutex_unlock(&jobs_lock);
 
 	return ret;
+}
+
+int wait_for_workers()
+{
+	pthread_mutex_lock(&running_lock);
+
+	while (running > 0) 
+		pthread_cond_wait(&running_cond, &running_lock);
+
+	pthread_mutex_unlock(&running_lock);
+
+	return 0;
 }

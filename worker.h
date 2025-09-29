@@ -26,5 +26,7 @@ struct worker_job {
 };
 
 int reg_worker_job(void *job_data, int (*handler)(void *data));
+int get_nr_running_workers();
+int wait_for_workers();
 
 #endif
