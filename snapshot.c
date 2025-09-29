@@ -139,7 +139,6 @@ static int write_snapshot(unsigned char *tree_sha1, unsigned char *sha1)
     offset += 1 + strftime(buffer+offset, sizeof(buffer)-offset, "date %Y-%m-%d %H:%M:%S", local);
 
 	// hash the buffer
-	SHA1((const unsigned char *)buffer, offset, sha1);	
 	ret = write_sha1_file(sha1, buffer, offset);
 
 	if (ret) {

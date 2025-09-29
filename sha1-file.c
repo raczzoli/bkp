@@ -79,41 +79,42 @@ int sha1_is_valid(unsigned char *sha1)
 int write_sha1_file(unsigned char *sha1, char *buffer, int len)
 {
 	int ret = 0;
+	int fd = -1;
 	int written = 0;
 	char path[PATH_MAX];
 	char sha1_hex[40+1];
 	char *compr_buff = NULL;
 	uLongf compr_len = 0;
 
-	sha1_to_hex(sha1, sha1_hex);
+	compr_len = compressBound(len);
+	compr_buff = malloc(compr_len);
 
+	if (!compr_buff) {
+		ret = -1;
+		goto ret;
+	}
+
+	if (compress((Bytef *)compr_buff, &compr_len, (const Bytef *)buffer, len) != Z_OK) {
+		fprintf(stderr, "Compression of SHA1 file content failed!\n");
+		ret = -1;
+		goto ret;
+	}
+
+	SHA1((const unsigned char *)compr_buff, compr_len, sha1);	
+
+	sha1_to_hex(sha1, sha1_hex);
 	sprintf(path, ".bkp-data/%s", sha1_hex);
-	int fd = open(path, O_WRONLY | O_CREAT | O_EXCL, 0666);
+
+	fd = open(path, O_WRONLY | O_CREAT | O_EXCL, 0666);
 	if (fd < 0) 
 		return errno == EEXIST ? 0 : fd;
 
-	if (len > 0) {
-		compr_len = compressBound(len);
-		compr_buff = malloc(compr_len);
+	written = write(fd, compr_buff, compr_len);
 
-		if (!compr_buff) {
-			ret = -1;
-			goto ret;
-		}
-
-		if (compress((Bytef *)compr_buff, &compr_len, (const Bytef *)buffer, len) != Z_OK) {
-			fprintf(stderr, "Compression of blob file failed!\n");
-			ret = -1;
-			goto ret;
-		}
-
-		written = write(fd, compr_buff, compr_len);
-
-		if (written != (int)compr_len) {
-			fprintf(stderr, "Error writing to file %s!\n", path);
-			ret = -1;
-			goto ret;
-		}
+	if (written != (int)compr_len) {
+		fprintf(stderr, "Error writing SHA1 file!\n");
+		ret = -1;
+		goto ret;
 	}
 
 ret:
@@ -132,7 +133,7 @@ int read_sha1_file(unsigned char *sha1, char *type, char **out_buff, int *out_si
 	int bytes = 0;
 	struct stat stat;
 	char sha1_hex[40+1];
-	char sha1_check_hex[40+1];
+	//char sha1_check_hex[40+1];
 	char path[PATH_MAX];
 	char *buff = NULL;
 	int buff_len = 0;
@@ -184,6 +185,8 @@ int read_sha1_file(unsigned char *sha1, char *type, char **out_buff, int *out_si
 	/*
 	 * Checking if the content still has the same SHA1 hash
 	 */
+
+	/* TODO - check suspended for the moment
 	unsigned char sha1_check[SHA_DIGEST_LENGTH];
 	SHA1((const unsigned char *)uncompr_buff, uncompr_len, sha1_check);
 
@@ -194,7 +197,8 @@ int read_sha1_file(unsigned char *sha1, char *type, char **out_buff, int *out_si
 		fprintf(stderr, "SHA1 file corrupted! Expected \"%s\" but computed \"%s\"!\n", sha1_hex, sha1_check_hex);
 		goto end;
 	}
-	
+	*/
+
 	/*
 	 * Check if sha1 content header matches the requested type
 	 */

@@ -78,7 +78,6 @@ int write_file(char *path, off_t size, unsigned char *sha1)
 		chunks_offset += SHA_DIGEST_LENGTH;
 	}
 
-	SHA1((const unsigned char *)chunks_buff, chunks_offset, sha1);
 	ret = write_sha1_file(sha1, chunks_buff, chunks_offset);
 
 end:
@@ -106,8 +105,6 @@ static int write_blob(char *buffer, int size, unsigned char *sha1)
 	offset += 1; // we want to keep the \0 too
 	memcpy(buff+offset, buffer, size);
 	offset += size;
-
-	SHA1((const unsigned char *)buff, buff_len, sha1);
 
 	ret = write_sha1_file(sha1, buff, buff_len);
 	

@@ -185,7 +185,6 @@ static int write_tree(struct tree *tree, unsigned char *sha1)
 		offset += SHA_DIGEST_LENGTH; 
 	}
 
-	SHA1((const unsigned char *)buffer, offset, sha1);	
 	ret = write_sha1_file(sha1, buffer, offset);
 
 	free(buffer);
