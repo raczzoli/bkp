@@ -67,22 +67,23 @@ int write_file(char *path, off_t size, unsigned char *sha1)
 	while((bytes_read = read(fd, buff, FILE_CHUNK_SIZE)) > 0)
 	{
 		ret = write_blob(buff, bytes_read, chunk_sha1);
-		if (ret) 
+
+		if (ret) {
+			free(chunks_buff);
+			chunks_buff = NULL;
 			goto end;
+		}
 
 		memcpy(chunks_buff+chunks_offset, chunk_sha1, SHA_DIGEST_LENGTH);
 		chunks_offset += SHA_DIGEST_LENGTH;
 	}
 
 	SHA1((const unsigned char *)chunks_buff, chunks_offset, sha1);
-	ret = write_sha1_file(sha1, chunks_buff, chunks_offset);
+	ret = write_sha1_file_async(sha1, chunks_buff, chunks_offset);
 
 end:
 	if (buff)
 		free(buff);
-
-	if (chunks_buff)
-		free(chunks_buff);
 
 	close(fd);
 	return ret;
@@ -91,7 +92,7 @@ end:
 static int write_blob(char *buffer, int size, unsigned char *sha1)
 {
 	int offset = 0;
-	int buff_len = 100+size;
+	int buff_len = size + 5; // 5 = "blob\0"
 	char *buff = malloc(buff_len);
 
 	if (!buff)
@@ -107,121 +108,32 @@ static int write_blob(char *buffer, int size, unsigned char *sha1)
 	return write_sha1_file_async(sha1, buff, buff_len);
 }
 
-int read_blob(unsigned char *sha1, char **out_buff, size_t *out_size)
+int read_blob(unsigned char *sha1, char **out_buff, int *out_size)
 {
-	int fd = 0;
-	int ret = 0;
-	int offset = 0;
-	int bytes = 0;
-	struct stat stat;
-	char path[PATH_MAX];
-	char sha1_hex[40+1];
-	int hdr_len = 5; // "blob"+\0
-	char hdr[hdr_len];
-
-	sha1_to_hex(sha1, sha1_hex);
-	sprintf(path, ".bkp-data/%s", sha1_hex); 
-
-	fd = open(path, O_RDONLY);
-	if (fd < 0) {
-		fprintf(stderr, "Cannot open blob file: %s - %s!\n", sha1_hex, strerror(errno));
-		return -1;
-	}
-
-	if (fstat(fd, &stat)) {
-		fprintf(stderr, "Cannot stat blob file: %s!\n", sha1_hex);
-		ret = -1;
-		goto end;
-	}
-
-	if (((bytes = read(fd, hdr, hdr_len)) != hdr_len) || 
-		memcmp(hdr, "blob\0", hdr_len) != 0) {
-		ret = -1;
-		fprintf(stderr, "Invalid or corrupted blob file!\n");
-		goto end;
-	}
-
-	*out_size = stat.st_size - hdr_len;
-	*out_buff = malloc(*out_size);
-
-	while ( (bytes = read(fd, (*out_buff)+offset, *out_size)) > 0 ) 
-		offset += bytes;	
-	
-	if (bytes < 0) {
-		free(*out_buff);
-		ret = -1;
-		goto end;
-	}
-
-end:
-	close(fd);
-	return ret;
+	return read_sha1_file(sha1, "blob", out_buff, out_size);
 }
 
 int read_chunks_file(unsigned char *sha1, unsigned char **out_buff, int *num_chunks)
 {
 	int ret = 0;
-	int fd = 0;
-	struct stat stat;
-	char path[PATH_MAX];
-	char sha1_hex[40+1];
-	int hdr_len = 7; // "chunks"+\0
-	char hdr[hdr_len];
-	int chunks_size = 0;
-	int bytes;
+	unsigned char *buff = NULL;
+	int buff_len = 0;
 
-	sha1_to_hex(sha1, sha1_hex);
-	sprintf(path, ".bkp-data/%s", sha1_hex);
+	ret = read_sha1_file(sha1, "chunks", (char **)&buff, &buff_len);
+	if (ret)
+		return ret;
 
-	fd = open(path, O_RDONLY);
-	if (fd < 0) {
-		fprintf(stderr, "Cannot open chunks file: %s!\n", sha1_hex);
-		return -1;
-	}
-
-	if (fstat(fd, &stat)) {
-		fprintf(stderr, "Cannot stat chunks file: %s!\n", sha1_hex);
-		ret = -1;
-		goto end;
-	}
-
-	if (((bytes = read(fd, hdr, hdr_len)) != hdr_len) || 
-		memcmp(hdr, "chunks\0", hdr_len) != 0) {
-		ret = -1;
-		fprintf(stderr, "Invalid or corrupted chunks file!\n");
-		goto end;
-	}
-
-	chunks_size = stat.st_size - hdr_len; 
-
-	if (chunks_size % SHA_DIGEST_LENGTH != 0) {
+	if (buff_len % SHA_DIGEST_LENGTH != 0) {
 		fprintf(stderr, "Invalid or corrupted chunks file! The size of the chunks should be a multiple of %d bytes.\n", SHA_DIGEST_LENGTH);
 		ret = -1;
+		free(buff);
 		goto end;
 	}
 
-	*num_chunks = chunks_size / SHA_DIGEST_LENGTH;
-	*out_buff = malloc(chunks_size);
-
-	if (!*out_buff) {
-		ret = -ENOMEM;
-		fprintf(stderr, "Error allocating memory for chunks buffer!\n");
-		goto end;
-	}
-
-	int offset = 0;
-	while ( (bytes = read(fd, (*out_buff)+offset, chunks_size)) > 0 ) 
-		offset += bytes;	
-	
-	if (bytes < 0) {
-		free(*out_buff);
-		ret = -1;
-		goto end;
-	}
-
+	*out_buff = buff;
+	*num_chunks = buff_len / SHA_DIGEST_LENGTH;
 
 end:
-	close(fd);
 	return ret;
 }
 

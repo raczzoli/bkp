@@ -14,6 +14,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.  
  */
 
+#include <asm-generic/errno-base.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <limits.h>
@@ -112,7 +113,6 @@ int write_sha1_file(unsigned char *sha1, char *buffer, int len)
 	sha1_to_hex(sha1, sha1_hex);
 
 	sprintf(path, ".bkp-data/%s", sha1_hex);
-
 	int fd = open(path, O_WRONLY | O_CREAT | O_EXCL, 0666);
 	if (fd < 0) 
 		return errno == EEXIST ? 0 : fd;
@@ -142,7 +142,7 @@ int write_sha1_file(unsigned char *sha1, char *buffer, int len)
 	}
 
 ret:
-	if (fd)
+	if (fd >= 0)
 		close(fd);
 
 	if (compr_buff)
@@ -151,7 +151,7 @@ ret:
 	return ret;
 }
 
-int read_sha1_file(unsigned char *sha1, char **out_buff, int *out_size)
+int read_sha1_file(unsigned char *sha1, char *type, char **out_buff, int *out_size)
 {
 	int ret = 0;
 	int bytes = 0;
@@ -160,6 +160,10 @@ int read_sha1_file(unsigned char *sha1, char **out_buff, int *out_size)
 	char sha1_check_hex[40+1];
 	char path[PATH_MAX];
 	char *buff = NULL;
+	int buff_len = 0;
+	char *uncompr_buff = NULL;
+	int uncompr_len = 0;
+	char hdr_len = strlen(type)+1; // to include \0
 
 	sha1_to_hex(sha1, sha1_hex);
 	sprintf(path, ".bkp-data/%s", sha1_hex);
@@ -176,48 +180,73 @@ int read_sha1_file(unsigned char *sha1, char **out_buff, int *out_size)
 		goto end;
 	}
 
-	buff = malloc(stat.st_size);
+	buff_len = stat.st_size;
+	buff = malloc(buff_len);
 	if (!buff) {
 		ret = -ENOMEM;
 		fprintf(stderr, "Error allocating memory for SHA1 file content: %s\n", sha1_hex);
 		goto end;
 	}
 
-	bytes = read(fd, buff, stat.st_size);
+	bytes = read(fd, buff, buff_len);
 
 	/*
 	 * TODO: this condition will need to be replaced with a 
 	 * while(bytes = read()...) just like we did in other places
 	 */
-	if (bytes != stat.st_size) { 
+	if (bytes != buff_len) { 
 		ret = -1;
 		fprintf(stderr, "Error reading from SHA1 file: %s!\n", sha1_hex);
 		goto end;
 	}
+	ret = inflate_sha1_file(buff, bytes, &uncompr_buff, &uncompr_len);
 
-	ret = inflate_sha1_file(buff, bytes, out_buff, out_size);
-
-	if (ret == 0) {
-		unsigned char sha1_check[SHA_DIGEST_LENGTH];
-		SHA1((const unsigned char *)*out_buff, *out_size, sha1_check);
-
-		if (memcmp(sha1_check, sha1, SHA_DIGEST_LENGTH) != 0) {
-			ret = -1;
-
-			if (*out_buff)
-				free(*out_buff);
-
-			*out_size = 0;
-
-			sha1_to_hex(sha1_check, sha1_check_hex);
-			fprintf(stderr, "SHA1 file corrupted! Expected \"%s\" but computed \"%s\"!\n", sha1_hex, sha1_check_hex);
-			goto end;
-		}
+	if (ret != 0) {
+		fprintf(stderr, "Error uncompressing sha1 file %s!\n", sha1_hex);
+		goto end;
 	}
+
+	/*
+	 * Checking if the content still has the same SHA1 hash
+	 */
+	unsigned char sha1_check[SHA_DIGEST_LENGTH];
+	SHA1((const unsigned char *)uncompr_buff, uncompr_len, sha1_check);
+
+	if (memcmp(sha1_check, sha1, SHA_DIGEST_LENGTH) != 0) {
+		ret = -1;
+
+		sha1_to_hex(sha1_check, sha1_check_hex);
+		fprintf(stderr, "SHA1 file corrupted! Expected \"%s\" but computed \"%s\"!\n", sha1_hex, sha1_check_hex);
+		goto end;
+	}
+	
+	/*
+	 * Check if sha1 content header matches the requested type
+	 */
+	if (memcmp(uncompr_buff, type, hdr_len-1) != 0) {
+		ret = -1;
+		fprintf(stderr, "Requested type \"%s\" not matched in SHA1 file %s!\n", type, sha1_hex);
+		goto end;
+	}
+
+	*out_size = uncompr_len - hdr_len;
+	*out_buff = malloc(*out_size);
+
+	if (!*out_buff) {
+		ret = -ENOMEM;
+		fprintf(stderr, "Error allocating memory for output buffer for SHA1 file %s!\n", sha1_hex);
+		goto end;
+	}
+
+	memcpy(*out_buff, uncompr_buff + hdr_len, *out_size);
+
 
 end:
 	if (buff)
 		free(buff);
+
+	if (uncompr_buff)
+		free(uncompr_buff);
 
 	close(fd);
 	return ret;
@@ -264,17 +293,12 @@ static int inflate_sha1_file(char *in_buff, size_t in_size, char **out_buff, int
 		strm.avail_out = chunk_size;
 		strm.next_out = buff + offset;
 		
-		ret = inflate(&strm, Z_NO_FLUSH);
-		switch(ret) {
-			case Z_STREAM_ERROR:
-			case Z_DATA_ERROR:
-			case Z_MEM_ERROR:
-			case Z_NEED_DICT:
-				ret = -1;
-				free(buff);
-				goto end;
+		if ((ret = inflate(&strm, Z_NO_FLUSH)) < 0) {
+			fprintf(stderr, "SHA1 file inflate returned code %d!\n", ret);
+			ret = -1;
+			goto end;
 		}
-		
+
 		offset += chunk_size - strm.avail_out;
 	} while (ret != Z_STREAM_END);
 
@@ -291,7 +315,7 @@ static int write_async_cb(void *data)
 {
 	struct write_job_data *jb_data = (struct write_job_data *) data;
 	int ret = write_sha1_file(jb_data->sha1, jb_data->buff, jb_data->len);
-		
+
 	free(jb_data->buff);
 	free(jb_data);
 

@@ -162,7 +162,6 @@ end:
 
 static int write_tree(struct tree *tree, unsigned char *sha1)
 {
-	int ret = 0;
 	struct tree_entry *entry;
 	int size = 100 + (sizeof(struct tree_entry) * tree->entries_len);
 	char *buffer = malloc(size); 
@@ -175,7 +174,7 @@ static int write_tree(struct tree *tree, unsigned char *sha1)
 
 	offset = sprintf(buffer, "tree");
 	offset += 1; // we want to keep the \0
-
+	
 	for (int i=0;i<tree->entries_len;i++) {
 		entry = tree->entries[i];
 		offset += sprintf(buffer+offset, "%d %s", entry->st_mode, entry->name);
@@ -186,10 +185,7 @@ static int write_tree(struct tree *tree, unsigned char *sha1)
 	}
 
 	SHA1((const unsigned char *)buffer, offset, sha1);	
-	ret = write_sha1_file(sha1, buffer, offset);
-
-	free(buffer);
-	return ret;
+	return write_sha1_file_async(sha1, buffer, offset);
 }
 
 int read_tree_file(unsigned char *sha1, struct tree *tree)
@@ -204,15 +200,10 @@ int read_tree_file(unsigned char *sha1, struct tree *tree)
 	tree->entries = NULL;
 	tree->entries_len = 0;
 
-	ret = read_sha1_file(sha1, &buff, &buff_len);
+	ret = read_sha1_file(sha1, "tree", &buff, &buff_len);
 
 	if (ret)
 		return -1;
-
-	/*
-	 * Skipping the tree file header ("tree\0")
-	 */
-	offset += strlen(buff)+1;
 
 	while(offset < buff_len) {
 		entry = malloc(sizeof(struct tree_entry));	

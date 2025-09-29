@@ -28,6 +28,7 @@
 #include "restore.h"
 #include "sha1-file.h"
 #include "print-file.h"
+#include "worker.h"
 
 static struct option cmdline_options[] = {
 	{"create-snapshot",  no_argument,       0, 0},
@@ -49,7 +50,7 @@ int main(int argc, char **argv)
 
 	if (handle_cmdline_args(argc, argv))
 		return -1;
-
+	
 	return 0;
 }
 

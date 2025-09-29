@@ -76,10 +76,15 @@ int restore_snapshot(unsigned char *sha1, char *path, char *sub_path)
 	 * slashes at the beginning, end etc.) no matter what the 
 	 * user wrote
 	 */
-	char full_sub_path[PATH_MAX];
-	snprintf(full_sub_path, PATH_MAX, "%s%s", path, sub_path);
+	if (sub_path) {
+		char full_sub_path[PATH_MAX];
+		snprintf(full_sub_path, PATH_MAX, "%s%s", path, sub_path);
 
-	ret = restore_tree(snapshot.tree_sha1, path, full_sub_path, strlen(full_sub_path));
+		ret = restore_tree(snapshot.tree_sha1, path, full_sub_path, strlen(full_sub_path));
+	}
+	else 
+		ret = restore_tree(snapshot.tree_sha1, path, NULL, 0); 
+
 	if (ret)
 		return -1;
 
@@ -100,7 +105,6 @@ static int restore_tree(unsigned char *sha1, char *out_path, char *sub_path, int
 
 	for (int i=0;i<tree.entries_len;i++) {
 		entry = tree.entries[i];
-
 		full_out_path_len = snprintf(full_out_path, PATH_MAX, "%s%s", out_path, entry->name);
 
 		if (sub_path) {
@@ -116,6 +120,7 @@ static int restore_tree(unsigned char *sha1, char *out_path, char *sub_path, int
 			if (memcmp(full_out_path, sub_path, sub_path_len) != 0 &&
 				memcmp(full_out_path, sub_path, full_out_path_len) != 0)
 				continue;
+
 		}
 
 		if (S_ISDIR(entry->st_mode)) {
@@ -167,13 +172,9 @@ static int restore_file(struct tree_entry *entry, char *out_path)
 	char *blob_buff = NULL;
 	int num_chunks = 0;
 	int offset = 0;
-	size_t bytes = 0;
-	size_t blob_size = 0;
+	int bytes = 0;
+	int blob_size = 0;
 	int perms = entry->st_mode & 0777;
-
-	ret = read_chunks_file(entry->sha1, &chunks_buff, &num_chunks);
-	if (ret)
-		return -1;
 
 	fd = open(out_path, O_WRONLY | O_CREAT, perms);
 	if (fd < 0) {
@@ -181,6 +182,10 @@ static int restore_file(struct tree_entry *entry, char *out_path)
 		fprintf(stderr, "Error opening output file: %s - %s\n", out_path, strerror(errno));
 		goto end;
 	}
+
+	ret = read_chunks_file(entry->sha1, &chunks_buff, &num_chunks);
+	if (ret)
+		return -1;
 
 	while(num_chunks > 0) {
 		unsigned char *sha1 = chunks_buff+offset;
@@ -191,7 +196,7 @@ static int restore_file(struct tree_entry *entry, char *out_path)
 		 * Let`s write the blob chunks
 		 */	
 		ret = read_blob(sha1, &blob_buff, &blob_size);
-		
+
 		if (ret) 
 			goto end;
 	
