@@ -79,11 +79,14 @@ int write_file(char *path, off_t size, unsigned char *sha1)
 	}
 
 	SHA1((const unsigned char *)chunks_buff, chunks_offset, sha1);
-	ret = write_sha1_file_async(sha1, chunks_buff, chunks_offset);
+	ret = write_sha1_file(sha1, chunks_buff, chunks_offset);
 
 end:
 	if (buff)
 		free(buff);
+	
+	if (chunks_buff)
+		free(chunks_buff);
 
 	close(fd);
 	return ret;
@@ -91,6 +94,7 @@ end:
 
 static int write_blob(char *buffer, int size, unsigned char *sha1)
 {
+	int ret = 0;
 	int offset = 0;
 	int buff_len = size + 5; // 5 = "blob\0"
 	char *buff = malloc(buff_len);
@@ -105,7 +109,10 @@ static int write_blob(char *buffer, int size, unsigned char *sha1)
 
 	SHA1((const unsigned char *)buff, buff_len, sha1);
 
-	return write_sha1_file_async(sha1, buff, buff_len);
+	ret = write_sha1_file(sha1, buff, buff_len);
+	
+	free(buff);
+	return ret;
 }
 
 int read_blob(unsigned char *sha1, char **out_buff, int *out_size)

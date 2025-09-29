@@ -27,7 +27,6 @@
 #include "cache.h"
 #include "tree.h"
 #include "sha1-file.h"
-#include "worker.h"
 
 static int write_snapshot(unsigned char *tree_sha1, unsigned char *sha1);
 static int read_last_sha1(unsigned char *sha1);
@@ -94,15 +93,6 @@ int create_snapshot()
 	if (ret)
 		goto end;
 
-	/*
-	 * Since we use write_sha1_file_async to
-	 * write snapshots, trees, chunks etc
-	 * we have to wait for workers which may be 
-	 * still running
-	 */
-	wait_for_workers();
-
-
 	printf("Writing %d entries to filecache... ", cache->entries_len);
 	fflush(stdout);
 	update_cache(cache);
@@ -150,14 +140,18 @@ static int write_snapshot(unsigned char *tree_sha1, unsigned char *sha1)
 
 	// hash the buffer
 	SHA1((const unsigned char *)buffer, offset, sha1);	
-	ret = write_sha1_file_async(sha1, buffer, offset);
+	ret = write_sha1_file(sha1, buffer, offset);
 
 	if (ret) {
 		fprintf(stderr, "Error writing snapshot file!\n");
-		return -1;
+		goto end;
 	}
 
-	write_last_sha1(sha1);
+	ret = write_last_sha1(sha1);
+	
+end:
+	if (buffer)
+		free(buffer);
 
 	return ret;
 }

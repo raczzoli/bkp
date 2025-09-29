@@ -19,17 +19,11 @@
 
 #include <openssl/sha.h>
 
-struct write_job_data {
-	unsigned char sha1[SHA_DIGEST_LENGTH];
-	char *buff;
-	int len;
-};
 
 int sha1_to_hex(unsigned char *sha1, char* out_hex);
 int hex_to_sha1(char *hex, unsigned char *out_sha1);
 
 int write_sha1_file(unsigned char *sha1, char *buffer, int len);
-int write_sha1_file_async(unsigned char *sha1, char *buffer, int len);
 int read_sha1_file(unsigned char *sha1, char *type, char **out_buff, int *out_size);
 
 int sha1_is_valid(unsigned char *sha1);

@@ -27,10 +27,8 @@
 #include <zlib.h>
 
 #include "sha1-file.h"
-#include "worker.h"
 
 static int hexchar_to_int(char c);
-static int write_async_cb(void *data);
 static int inflate_sha1_file(char *in_buff, size_t in_size, char **out_buff, int *out_size);
 
 int sha1_to_hex(unsigned char *sha1, char* out_hex)
@@ -76,29 +74,6 @@ int sha1_is_valid(unsigned char *sha1)
 			return 1;
 
 	return 0;
-}
-
-int write_sha1_file_async(unsigned char *sha1, char *buffer, int len)
-{
-	int ret = 0;
-	struct write_job_data *data = malloc(sizeof(struct write_job_data));
-
-	if (!data) {
-		fprintf(stderr, "Error allocating memory for write job data structure!\n");
-		return -ENOMEM;
-	}
-
-	memcpy(data->sha1, sha1, SHA_DIGEST_LENGTH);
-	data->buff = buffer;
-	data->len = len;
-
-	ret = reg_worker_job(data, write_async_cb);
-	if (ret) {
-		free(data);
-		return -1;
-	}
-
-	return 0;		
 }
 
 int write_sha1_file(unsigned char *sha1, char *buffer, int len)
@@ -311,13 +286,3 @@ end:
 	return ret;
 }
 
-static int write_async_cb(void *data)
-{
-	struct write_job_data *jb_data = (struct write_job_data *) data;
-	int ret = write_sha1_file(jb_data->sha1, jb_data->buff, jb_data->len);
-
-	free(jb_data->buff);
-	free(jb_data);
-
-	return ret;
-}
