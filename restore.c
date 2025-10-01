@@ -78,8 +78,21 @@ int restore_snapshot(unsigned char *sha1, char *path, char *sub_path)
 	 */
 	if (sub_path) {
 		char full_sub_path[PATH_MAX];
-		snprintf(full_sub_path, PATH_MAX, "%s%s", path, sub_path);
+		int sub_path_len = strlen(sub_path);
+		
+		// remove leading / (if exists)
+		if (sub_path[0] == '/') {
+			sub_path++;
+			sub_path_len--;	
+		}
 
+		// remove ending / (if exists)
+		if (sub_path[sub_path_len-1] == '/') {
+			sub_path[sub_path_len-1] = '\0';
+			sub_path_len--;
+		}
+
+		snprintf(full_sub_path, PATH_MAX, "%s%s", path, sub_path);
 		ret = restore_tree(snapshot.tree_sha1, path, full_sub_path, strlen(full_sub_path));
 	}
 	else 
@@ -109,18 +122,41 @@ static int restore_tree(unsigned char *sha1, char *out_path, char *sub_path, int
 
 		if (sub_path) {
 			/*
-			 * Here we do two comparations because:
-			 * 1. if sub_path is a directory we check: 
-			 *    strncmp(full_out_path, sub_path, sub_path_len)
-			 *    so we know that sub_path is a substring (prefix) of full_path
-			 * 2. if sub_path is a file, we do the opposite
-			 *    strncmp(full_out_path, sub_path, full_out_path_len)
-			 *    meaning full_out_path is a prefix of sub_path
+			 * cond0 - will be true when full_output_path passed sub_path 
+			 *		 (meanin we are in a subdirectory of the sub_path)
+			 * example: 
+			 *	sub_path = 'entry1/entry2'
+			 *	out_path = 'entry1/entry2/entry3' (ok)
+			 *			 = 'entry1/entry2/entry3/entry4' (ok)
+			 *
+			 * cond1 - will be true when the two path lengths are equal and 
+			 *		 the paths themselves are equal
+			 * example:
+			 *	sub_path = 'entry1/entry2'
+			 *	out_path = 'entry1/entry2'
+			 *
+			 * cond2 - will be true when full_out_path not yet reached the full 
+			 *		 sub_path, but as far as we know, we are at a directory which is 
+			 *		 part of sub_path 
+			 * example
+			 *	sub_path = 'entry1/entry2/entry3'
+			 *	out_path = 'entry1' (ok)
+			 *			 = 'entry1/entry2' (ok)
+			 *
+			 * If one of these 3 conditions are true, it means the path we are at needs
+			 * to be included in the restore
 			 */
-			if (memcmp(full_out_path, sub_path, sub_path_len) != 0 &&
-				memcmp(full_out_path, sub_path, full_out_path_len) != 0)
-				continue;
+			int cond0 = full_out_path_len < sub_path_len &&
+						sub_path[full_out_path_len] == '/' &&
+						memcmp(full_out_path, sub_path, full_out_path_len) == 0;
+			int cond1 = full_out_path_len == sub_path_len && 
+						memcmp(full_out_path, sub_path, sub_path_len) == 0;
+			int cond2 = full_out_path_len > sub_path_len && 
+						full_out_path[sub_path_len] == '/' && 
+						memcmp(full_out_path, sub_path, sub_path_len) == 0;
 
+			if ( !cond0 && !cond1 && !cond2)
+				continue;
 		}
 
 		if (S_ISDIR(entry->st_mode)) {
