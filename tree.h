@@ -44,7 +44,8 @@ typedef struct tree {
 
 int create_tree(char *path, struct cache *cache, unsigned char *sha1);
 int read_tree_file(unsigned char *sha1, struct tree *tree);
-int print_tree_file(unsigned char *sha1);
+int read_tree_buffer(char *buff, int buff_len, struct tree *tree);
+int print_tree_buffer(char *buff, int buff_len);
 void free_tree_entries(struct tree *tree);
 
 #endif 

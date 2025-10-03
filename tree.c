@@ -196,17 +196,23 @@ int read_tree_file(unsigned char *sha1, struct tree *tree)
 	int ret = 0;
 	char *buff = NULL;
 	int buff_len = 0;
+
+	ret = read_sha1_file(sha1, "tree", &buff, &buff_len);
+	if (ret)
+		return -1;
+	
+	return read_tree_buffer(buff, buff_len, tree);
+}
+
+int read_tree_buffer(char *buff, int buff_len, struct tree *tree)
+{
+	int ret = 0;
+	struct tree_entry *entry = NULL;
 	int offset = 0;
 	int consumed = 0;
-	struct tree_entry *entry = NULL;
 
 	tree->entries = NULL;
 	tree->entries_len = 0;
-
-	ret = read_sha1_file(sha1, "tree", &buff, &buff_len);
-
-	if (ret)
-		return -1;
 
 	while(offset < buff_len) {
 		entry = malloc(sizeof(struct tree_entry));	
@@ -268,16 +274,15 @@ void free_tree_entries(struct tree *tree)
 	tree->entries_len = 0;
 }
 
-int print_tree_file(unsigned char *sha1)
+int print_tree_buffer(char *buff, int buff_len)
 {
+	int ret = 0;
 	struct tree tree;
 	struct tree_entry *entry;
 	char sha1_hex[40+1];
 
-	tree.entries = NULL;
-	tree.entries_len = 0;
-
-	if (read_tree_file(sha1, &tree)) 
+	ret = read_tree_buffer(buff, buff_len, &tree);
+	if (ret)
 		return -1;
 
 	if (tree.entries_len > 0)
@@ -289,4 +294,5 @@ int print_tree_file(unsigned char *sha1)
 
 	free_tree_entries(&tree);
 	return 0;
+
 }
