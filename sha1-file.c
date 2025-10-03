@@ -139,7 +139,7 @@ int read_sha1_file(unsigned char *sha1, char *type, char **out_buff, int *out_si
 	int buff_len = 0;
 	char *uncompr_buff = NULL;
 	int uncompr_len = 0;
-	char hdr_len = strlen(type)+1; // to include \0
+	char hdr_len = 0;
 
 	sha1_to_hex(sha1, sha1_hex);
 	sprintf(path, ".bkp-data/%s", sha1_hex);
@@ -199,16 +199,22 @@ int read_sha1_file(unsigned char *sha1, char *type, char **out_buff, int *out_si
 	}
 	*/
 
+	hdr_len = strlen(uncompr_buff) + 1;
+
 	/*
 	 * Check if sha1 content header matches the requested type
 	 */
-	if (memcmp(uncompr_buff, type, hdr_len-1) != 0) {
-		ret = -1;
-		fprintf(stderr, "Requested type \"%s\" not matched in SHA1 file %s!\n", type, sha1_hex);
-		goto end;
+	if (type && strlen(type) > 0) {
+		if (memcmp(uncompr_buff, type, hdr_len) != 0) {
+			ret = -1;
+			fprintf(stderr, "Requested type \"%s\" not matched in SHA1 file %s!\n", type, sha1_hex);
+			goto end;
+		}
 	}
+	else 
+		strcpy(type, uncompr_buff);
 
-	*out_size = uncompr_len - hdr_len;
+	*out_size = uncompr_len - hdr_len; // +1 -> skip \0 too
 	*out_buff = malloc(*out_size);
 
 	if (!*out_buff) {
