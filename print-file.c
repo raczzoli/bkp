@@ -13,42 +13,31 @@
 
 int print_sha1_file(char *sha1_hex)
 {
-	int bytes = 0;
-	int fd = 0;
-	char path[PATH_MAX];
+	int ret = 0;
 	unsigned char sha1[SHA_DIGEST_LENGTH];
-	char ftype[20];
+	char ftype[10] = {0};
+	char *out_buff;
+	int out_buff_len = 0;
 
 	if (hex_to_sha1(sha1_hex, sha1)) {
 		fprintf(stderr, "Invalid SHA1 value!\n");
 		return -1;
 	}
 
-	sprintf(path, ".bkp-data/%s", sha1_hex);
+	ret = read_sha1_file(sha1, ftype, &out_buff, &out_buff_len);
+	if (ret) 
+		return -1;
+
 	
-	fd = open(path, O_RDONLY);
-	if (fd < 0) {
-		fprintf(stderr, "SHA1 file %s doesn`t exist!\n", sha1_hex);
-		return -1;
-	}
-
-	bytes = read(fd, ftype, 20);
-	if (bytes < 0) {
-		fprintf(stderr, "Error reading from SHA1 file!\n");
-		return -1;
-	}
-	close(fd);
-
-	printf("############################### %s ###############################\n", ftype);
-
-	if (strcmp(ftype, "snapshot") == 0) 
-		return print_snapshot_file(sha1);
+	//if (strcmp(ftype, "snapshot") == 0) 
+	//	return print_snapshot_file(sha1);
 
 	if (strcmp(ftype, "tree") == 0) 
-		return print_tree_file(sha1);
+		return print_tree_buffer(out_buff, out_buff_len);
 
-	if (strcmp(ftype, "chunks") == 0) 
-		return print_chunks_file(sha1);
+	//if (strcmp(ftype, "chunks") == 0) 
+	//	return print_chunks_file(sha1);
+	
 	// blob
 	// chunks
 	// etc.
