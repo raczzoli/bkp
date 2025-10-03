@@ -120,37 +120,47 @@ int read_blob(unsigned char *sha1, char **out_buff, int *out_size)
 int read_chunks_file(unsigned char *sha1, unsigned char **out_buff, int *num_chunks)
 {
 	int ret = 0;
-	unsigned char *buff = NULL;
 	int buff_len = 0;
 
-	ret = read_sha1_file(sha1, "chunks", (char **)&buff, &buff_len);
+	ret = read_sha1_file(sha1, "chunks", (char **)out_buff, &buff_len);
 	if (ret)
 		return ret;
+
+	ret = read_chunks_buffer(buff_len, num_chunks);
+	if (ret) {
+		free(*out_buff);
+		*out_buff = NULL;
+	}
+
+	return ret;
+}
+
+int read_chunks_buffer(int buff_len, int *num_chunks)
+{
+	int ret = 0;
 
 	if (buff_len % SHA_DIGEST_LENGTH != 0) {
 		fprintf(stderr, "Invalid or corrupted chunks file! The size of the chunks should be a multiple of %d bytes.\n", SHA_DIGEST_LENGTH);
 		ret = -1;
-		free(buff);
 		goto end;
 	}
 
-	*out_buff = buff;
 	*num_chunks = buff_len / SHA_DIGEST_LENGTH;
 
 end:
 	return ret;
 }
 
-int print_chunks_file(unsigned char *sha1)
+int print_chunks_buffer(char *buff, int buff_len)
 {
-	unsigned char *buff = NULL, *tmp_buff = NULL;
+	unsigned char *tmp_buff = NULL;
 	int num_chunks = 0;
 	char sha1_hex[40+1];
 
-	if (read_chunks_file(sha1, &buff, &num_chunks)) 
+	if (read_chunks_buffer(buff_len, &num_chunks)) 
 		return -1;
 	
-	tmp_buff = buff;
+	tmp_buff = (unsigned char *)buff;
 	while(num_chunks > 0) {
 		sha1_to_hex(tmp_buff, sha1_hex);
 		printf("%s\n", sha1_hex);
@@ -159,7 +169,6 @@ int print_chunks_file(unsigned char *sha1)
 		num_chunks--;
 	}
 	
-	free(buff);
 	return 0;
 }
 

@@ -201,7 +201,10 @@ int read_tree_file(unsigned char *sha1, struct tree *tree)
 	if (ret)
 		return -1;
 	
-	return read_tree_buffer(buff, buff_len, tree);
+	ret = read_tree_buffer(buff, buff_len, tree);
+
+	free(buff);
+	return ret;
 }
 
 int read_tree_buffer(char *buff, int buff_len, struct tree *tree)
@@ -234,9 +237,7 @@ int read_tree_buffer(char *buff, int buff_len, struct tree *tree)
 	}
 
 end:
-	free(buff);
 	return ret;
-
 }
 
 static int add_tree_entry(struct tree *tree, struct tree_entry *entry)

@@ -1,5 +1,6 @@
 #include <openssl/sha.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -28,20 +29,22 @@ int print_sha1_file(char *sha1_hex)
 	if (ret) 
 		return -1;
 
+	printf("##################################### %s #####################################\n", ftype);
 	
-	//if (strcmp(ftype, "snapshot") == 0) 
-	//	return print_snapshot_file(sha1);
+	if (strcmp(ftype, "snapshot") == 0) 
+		return print_snapshot_buffer(sha1, out_buff);
 
 	if (strcmp(ftype, "tree") == 0) 
 		return print_tree_buffer(out_buff, out_buff_len);
 
-	//if (strcmp(ftype, "chunks") == 0) 
-	//	return print_chunks_file(sha1);
+	if (strcmp(ftype, "chunks") == 0) 
+		return print_chunks_buffer(out_buff, out_buff_len);
 	
 	// blob
 	// chunks
 	// etc.
-
+	
+	free(out_buff);
 	return 0;
 }
 

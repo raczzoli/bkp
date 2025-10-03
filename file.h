@@ -22,5 +22,6 @@
 int write_file(char *path, off_t size, unsigned char *sha1);
 int read_blob(unsigned char *sha1, char **out_buff, int *out_size);
 int read_chunks_file(unsigned char *sha1, unsigned char **out_buff, int *num_chunks);
-int print_chunks_file(unsigned char *sha1);
+int read_chunks_buffer(int buff_len, int *num_chunks);
+int print_chunks_buffer(char *buff, int buff_len);
 #endif
