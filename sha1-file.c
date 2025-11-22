@@ -27,6 +27,7 @@
 #include <zlib.h>
 
 #include "sha1-file.h"
+#include "pack.h"
 
 static int hexchar_to_int(char c);
 static int inflate_sha1_file(char *in_buff, size_t in_size, char **out_buff, int *out_size);
@@ -79,10 +80,10 @@ int sha1_is_valid(unsigned char *sha1)
 int write_sha1_file(unsigned char *sha1, char *buffer, int len)
 {
 	int ret = 0;
-	int fd = -1;
-	int written = 0;
-	char path[PATH_MAX];
-	char sha1_hex[40+1];
+	//int fd = -1;
+	//int written = 0;
+	//char path[PATH_MAX];
+	//char sha1_hex[40+1];
 	char *compr_buff = NULL;
 	uLongf compr_len = 0;
 
@@ -102,6 +103,9 @@ int write_sha1_file(unsigned char *sha1, char *buffer, int len)
 
 	SHA1((const unsigned char *)compr_buff, compr_len, sha1);	
 
+	pack_object(sha1, compr_buff, compr_len);
+
+	/*
 	sha1_to_hex(sha1, sha1_hex);
 	sprintf(path, ".bkp-data/%s", sha1_hex);
 
@@ -116,10 +120,10 @@ int write_sha1_file(unsigned char *sha1, char *buffer, int len)
 		ret = -1;
 		goto ret;
 	}
-
+	*/
 ret:
-	if (fd >= 0)
-		close(fd);
+	//if (fd >= 0)
+	//	close(fd);
 
 	if (compr_buff)
 		free(compr_buff);
