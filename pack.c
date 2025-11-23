@@ -9,6 +9,7 @@
 #include <dirent.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/mman.h>
 #include <time.h>
 #include <errno.h>
 
@@ -16,11 +17,11 @@
 #include "sha1-file.h"
 
 
-struct pack_index *pack_index = NULL;
-
 static int fd = -1;
 size_t fd_offset = 0;
 char pack_fname[PACK_FNAME_LEN+1];
+
+struct pack_index *pack_index = NULL;
 
 static int load_pack_index();
 static int resize_pack_index(struct pack_index *index, size_t size);
@@ -36,8 +37,12 @@ int pack_object(unsigned char *sha1, const char *obj, size_t size)
 	size_t written = 0;
 	struct pack_idx_entry *entry = malloc(sizeof(struct pack_idx_entry));
 
-	if (!pack_index)
-		load_pack_index();
+	if (!pack_index) {
+		ret = load_pack_index();
+
+		if (ret)
+			return ret;
+	}
 
 	if (!entry) {
 		fprintf(stderr, "Error allocating memory for pack index entry!\n");
@@ -71,10 +76,18 @@ end:
 
 static int load_pack_index()
 {
+	int ret = 0;
+	int fd = -1;
+	int offset = 0;
+	struct pack_idx_entry *entry;
+	struct stat cstat;
+	void *cmap = NULL;
+
 	pack_index = malloc(sizeof(struct pack_index));
 	if (!pack_index) {
 		fprintf(stderr, "Error allocating memory for pack index!\n");
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto err;
 	}
 
 	pack_index->size = 1024;
@@ -86,10 +99,45 @@ static int load_pack_index()
 		free(pack_index);
 		pack_index = NULL;
 
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto err;
 	}
 
-	return 0;
+	fd = open(".bkp-data/pack_index", O_RDONLY);	
+	if (fd < 0) 
+		goto end; // not an error, it just doesn`t exist yet
+	
+	if (fstat(fd, &cstat)) {	
+		fprintf(stderr, "Error calling fstat on filecache!\n");
+		goto err;
+	}
+	
+	cmap = mmap(NULL, cstat.st_size, PROT_READ | PROT_WRITE, MAP_PRIVATE, fd, 0);
+	if (cmap == MAP_FAILED) {
+		fprintf(stderr, "mmap failed while mapping packfile index into memory!\n");
+		goto err;
+	}
+
+	while(offset < cstat.st_size) {
+		entry = cmap + offset;
+		offset += sizeof(struct pack_idx_entry);
+
+		add_pack_entry(pack_index, entry);
+	}
+
+	goto end;
+err:
+	if (pack_index) {
+		if (pack_index->entries)
+			free(pack_index->entries);
+
+		free(pack_index);
+		pack_index = NULL;
+	}
+
+end:
+
+	return ret;
 }
 
 static int add_pack_entry(struct pack_index *index, struct pack_idx_entry *entry)
@@ -192,6 +240,9 @@ int update_pack_idx()
 		return -1;
 	}
 
+	printf("Updating packfile index... ");
+	fflush(stdout);
+
 	if (pack_index->entries_len > 0) {
 		for (size_t i=0;i<pack_index->size;i++) {
 			struct pack_idx_entry *e = pack_index->entries[i];
@@ -204,6 +255,7 @@ int update_pack_idx()
 
 	close(fd);
 	rename(".bkp-data/pack_index.new", ".bkp-data/pack_index");
+	printf("done\n");
 
 	return 0;
 }
