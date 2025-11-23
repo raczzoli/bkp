@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <fcntl.h>
 #include <string.h>
+#include <strings.h>
 #include <unistd.h>
 #include <limits.h>
 #include <dirent.h>
@@ -23,7 +24,6 @@ char pack_fname[PACK_FNAME_LEN+1];
 
 struct pack_index *pack_index = NULL;
 
-static int load_pack_index();
 static int resize_pack_index(struct pack_index *index, size_t size);
 static size_t get_sha1_idx(unsigned char *sha1, size_t size);
 static int add_pack_entry(struct pack_index *index, struct pack_idx_entry *entry);
@@ -35,14 +35,13 @@ int pack_object(unsigned char *sha1, const char *obj, size_t size)
 {
 	int ret = 0;
 	size_t written = 0;
-	struct pack_idx_entry *entry = malloc(sizeof(struct pack_idx_entry));
+	struct pack_idx_entry *entry = NULL;
 
-	if (!pack_index) {
-		ret = load_pack_index();
+	if (!pack_index)
+		load_pack_index();
 
-		if (ret)
-			return ret;
-	}
+	entry = malloc(sizeof(struct pack_idx_entry));
+	entry->next = NULL;
 
 	if (!entry) {
 		fprintf(stderr, "Error allocating memory for pack index entry!\n");
@@ -74,7 +73,92 @@ end:
 	return ret;
 }
 
-static int load_pack_index()
+int unpack_object(unsigned char *sha1, char **out_buff, int *out_buff_len)
+{
+	int ret = 0;
+	int fd = 0;
+	off_t pos = -1;
+	int bytes = 0;
+	char *buff;
+	char path[PATH_MAX];
+	struct pack_idx_entry *entry = NULL;
+
+	if (!pack_index)
+		load_pack_index();
+
+	entry = get_pack_entry(pack_index, sha1);
+
+	if (!entry) {
+		printf("Pack entry not found!\n");
+		return -ENOENT;
+	}
+
+	buff = malloc(entry->len);
+	if (!buff) {
+		ret = -ENOMEM;
+		fprintf(stderr, "Error allocating memory for pack object!\n");
+		goto err;
+	}
+
+	sprintf(path, PACK_DIR"%s", entry->packfile);
+	
+	fd = open(path, O_RDONLY);
+	if (fd < 0) {
+		ret = -ENOENT;
+		fprintf(stderr, "Unable to open packfile %s (%s)!\n", path, strerror(errno));
+		goto err;
+	}
+
+	pos = lseek(fd, entry->offset, SEEK_SET);
+	if (pos == (off_t)-1) {
+		fprintf(stderr, "Unable to seek to offset %ld in %s!\n", entry->offset, entry->packfile);
+		ret = -1;
+		goto err;
+	}
+
+	bytes = read(fd, buff, entry->len);
+	if (bytes != entry->len) {
+		fprintf(stderr, "Read %d bytes from %s (%d expected)!\n", bytes, entry->packfile, entry->len);
+		ret = -1;
+		goto err;
+	}
+
+	*out_buff = buff;
+	*out_buff_len = entry->len;
+
+	goto end;
+
+err:
+	if (buff)
+		free(buff);
+
+end:
+
+	if (fd >= 0)
+		close(fd);
+
+	return ret;
+}
+
+struct pack_idx_entry *get_pack_entry(struct pack_index *index, unsigned char *sha1)
+{
+	if (!index)
+		return NULL;
+
+	size_t idx = get_sha1_idx(sha1, index->size);
+	struct pack_idx_entry *exist_ent = index->entries[idx];
+	
+	while (exist_ent) {
+		if (memcmp(exist_ent->sha1, sha1, SHA_DIGEST_LENGTH) == 0)
+			return exist_ent;
+
+		exist_ent = exist_ent->next;
+	}	
+
+	return NULL;
+}
+
+int load_pack_index()
 {
 	int ret = 0;
 	int fd = -1;
@@ -82,6 +166,9 @@ static int load_pack_index()
 	struct pack_idx_entry *entry;
 	struct stat cstat;
 	void *cmap = NULL;
+
+	printf("Loading packfile index into memory... ");
+	fflush(stdout);
 
 	pack_index = malloc(sizeof(struct pack_index));
 	if (!pack_index) {
@@ -120,12 +207,14 @@ static int load_pack_index()
 
 	while(offset < cstat.st_size) {
 		entry = cmap + offset;
+		entry->next = NULL;
 		offset += sizeof(struct pack_idx_entry);
 
 		add_pack_entry(pack_index, entry);
 	}
 
 	goto end;
+
 err:
 	if (pack_index) {
 		if (pack_index->entries)
@@ -137,6 +226,7 @@ err:
 
 end:
 
+	printf("done\n");
 	return ret;
 }
 
@@ -148,13 +238,25 @@ static int add_pack_entry(struct pack_index *index, struct pack_idx_entry *entry
 	}
 
 	size_t idx = get_sha1_idx(entry->sha1, index->size);
-	if (index->entries[idx]) 
-		return 0;
+	struct pack_idx_entry *exist_ent = index->entries[idx];
+	
+	if (exist_ent) {
+		while (exist_ent) {
+			if (memcmp(exist_ent->sha1, entry->sha1, SHA_DIGEST_LENGTH) == 0)
+				return 0;
 
-	idx = get_sha1_idx(entry->sha1, pack_index->size);
+			if (!exist_ent->next)
+				break;
 
-	index->entries[idx] = entry;
-	index->entries_len++;
+			exist_ent = exist_ent->next;
+		}
+
+		exist_ent->next = entry;
+	}
+	else {
+		index->entries[idx] = entry;
+		index->entries_len++;	
+	}
 
 	return 0;
 }
@@ -188,13 +290,14 @@ static int resize_pack_index(struct pack_index *index, size_t size)
 
 static size_t get_sha1_idx(unsigned char *sha1, size_t size)
 {
-	size_t h;
+    size_t h = 146527;
 
-	// we copy the first 8 bytes (sizeof size_t)
-	// to h (the first 8 bytes are enough to make
-	// sure we have a unique index)
-	memcpy(&h, sha1, sizeof(size_t));
-	return h % size;	
+    for (int i = 0; i < 20; i++) {
+        h ^= sha1[i];
+        h *= 1099511628211ULL; // 64-bit FNV-1a
+    }
+
+    return h % size;
 }
 
 static int create_packfile()
@@ -240,22 +343,20 @@ int update_pack_idx()
 		return -1;
 	}
 
-	printf("Updating packfile index... ");
-	fflush(stdout);
-
 	if (pack_index->entries_len > 0) {
 		for (size_t i=0;i<pack_index->size;i++) {
 			struct pack_idx_entry *e = pack_index->entries[i];
-			if (!e)
-				continue;
-
-			write(fd, e, sizeof(struct pack_idx_entry));
+			while(e) {
+				printf("writing... %s\n", e->packfile);
+				write(fd, e, sizeof(struct pack_idx_entry));
+				e = e->next;
+			}
 		}
 	}
 
 	close(fd);
 	rename(".bkp-data/pack_index.new", ".bkp-data/pack_index");
-	printf("done\n");
+
 
 	return 0;
 }

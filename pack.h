@@ -7,16 +7,13 @@
 #define PACK_DIR ".bkp-data/packs/"
 #define PACK_FILE_SIZE 1024 * 1024 * 1024
 
-int pack_object(unsigned char *sha1, const char *obj, size_t size);
-void close_last_packfile();
-int update_pack_idx();
-
 
 struct pack_idx_entry {
 	char packfile[PACK_FNAME_LEN+1];
 	unsigned char sha1[20];
 	size_t offset;
 	int len;
+	struct pack_idx_entry *next;
 };
 
 struct pack_index {
@@ -24,5 +21,14 @@ struct pack_index {
 	size_t entries_len;
 	size_t size;
 };
+
+int pack_object(unsigned char *sha1, const char *obj, size_t size);
+int unpack_object(unsigned char *sha1, char **out_buff, int *out_buff_len);
+
+void close_last_packfile();
+int update_pack_idx();
+int load_pack_index();
+
+struct pack_idx_entry *get_pack_entry(struct pack_index *index, unsigned char *sha1);
 
 #endif
