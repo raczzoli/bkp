@@ -3,7 +3,19 @@
 
 #include <stddef.h>
 
-int pack_object(unsigned char *sha1, const char *obj, size_t size);
+#define PACK_FNAME_LEN 19 // 20250101000000.pack
+#define PACK_DIR ".bkp-data/packs/"
+#define PACK_FILE_SIZE 1024 * 1024 * 1024
 
+int pack_object(unsigned char *sha1, const char *obj, size_t size);
+void close_last_packfile();
+void update_pack_idx();
+
+struct pack_idx_entry {
+	char packfile[PACK_FNAME_LEN+1];
+	char sha1[20];
+	size_t offset;
+	int len;
+};
 
 #endif
