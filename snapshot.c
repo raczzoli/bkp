@@ -27,7 +27,7 @@
 #include "cache.h"
 #include "tree.h"
 #include "sha1-file.h"
-
+#include "pack.h"
 static int write_snapshot(unsigned char *tree_sha1, unsigned char *sha1);
 static int read_last_sha1(unsigned char *sha1);
 static int write_last_sha1(unsigned char *sha1);
@@ -93,10 +93,14 @@ int create_snapshot()
 	if (ret)
 		goto end;
 
+
 	printf("Writing %d entries to filecache... ", cache->entries_len);
 	fflush(stdout);
 	update_cache(cache);
 	printf("done\n");
+
+	close_last_packfile();
+	update_pack_idx();
 
 	sha1_to_hex(tree_sha1, sha1_hex);
 	printf("\nTree sha1: %s\n", sha1_hex);
@@ -147,7 +151,7 @@ static int write_snapshot(unsigned char *tree_sha1, unsigned char *sha1)
 	}
 
 	ret = write_last_sha1(sha1);
-	
+
 end:
 	if (buffer)
 		free(buffer);
