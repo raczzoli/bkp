@@ -89,6 +89,7 @@ static int scan_tree(char *path, struct cache *cache, unsigned char *sha1)
 
 		if (S_ISDIR(sb.st_mode)) {
 			strcat(full_path, "/");
+
 			ret = scan_tree(full_path, cache, entry->sha1);
 			if (ret)
 				goto end;
@@ -140,7 +141,7 @@ static int scan_tree(char *path, struct cache *cache, unsigned char *sha1)
 			// add file sha1 to tree entry
 			memcpy(entry->sha1, c_entry->sha1, SHA_DIGEST_LENGTH);
 		}
-	
+
 		ret = add_tree_entry(&tree, entry);
 		if (ret) 
 			goto end;
