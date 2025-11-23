@@ -72,11 +72,13 @@ int create_snapshot()
 	unsigned char tree_sha1[SHA_DIGEST_LENGTH];
 	unsigned char snap_sha1[SHA_DIGEST_LENGTH];
 	char sha1_hex[40+1];
+	struct cache *cache = NULL;
+
 
 	printf("Loading filecache into memory... ");
 	fflush(stdout);
 
-	struct cache *cache = load_cache();
+	cache = load_cache();
 	if (!cache)
 		return -1;
 
@@ -99,8 +101,12 @@ int create_snapshot()
 	update_cache(cache);
 	printf("done\n");
 
+	printf("Updating packfile index... ");
+	fflush(stdout);
+
 	close_last_packfile();
 	update_pack_idx();
+	printf("done\n");
 
 	sha1_to_hex(tree_sha1, sha1_hex);
 	printf("\nTree sha1: %s\n", sha1_hex);
