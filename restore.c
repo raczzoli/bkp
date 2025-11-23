@@ -119,7 +119,6 @@ static int restore_tree(unsigned char *sha1, char *out_path, char *sub_path, int
 	for (int i=0;i<tree.entries_len;i++) {
 		entry = tree.entries[i];
 		full_out_path_len = snprintf(full_out_path, PATH_MAX, "%s%s", out_path, entry->name);
-
 		if (sub_path) {
 			/*
 			 * cond0 - will be true when full_output_path passed sub_path 
@@ -161,7 +160,6 @@ static int restore_tree(unsigned char *sha1, char *out_path, char *sub_path, int
 
 		if (S_ISDIR(entry->st_mode)) {
 			strcat(full_out_path, "/");
-
 			if (restore_dir(entry, full_out_path, sub_path, sub_path_len)) {
 				ret = -1;
 				goto end;
