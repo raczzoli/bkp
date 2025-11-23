@@ -80,10 +80,6 @@ int sha1_is_valid(unsigned char *sha1)
 int write_sha1_file(unsigned char *sha1, char *buffer, int len)
 {
 	int ret = 0;
-	//int fd = -1;
-	//int written = 0;
-	//char path[PATH_MAX];
-	//char sha1_hex[40+1];
 	char *compr_buff = NULL;
 	uLongf compr_len = 0;
 
@@ -103,27 +99,9 @@ int write_sha1_file(unsigned char *sha1, char *buffer, int len)
 
 	SHA1((const unsigned char *)compr_buff, compr_len, sha1);	
 
-	pack_object(sha1, compr_buff, compr_len);
-
-	/*
-	sha1_to_hex(sha1, sha1_hex);
-	sprintf(path, ".bkp-data/%s", sha1_hex);
-
-	fd = open(path, O_WRONLY | O_CREAT | O_EXCL, 0666);
-	if (fd < 0) 
-		return errno == EEXIST ? 0 : fd;
-
-	written = write(fd, compr_buff, compr_len);
-
-	if (written != (int)compr_len) {
-		fprintf(stderr, "Error writing SHA1 file!\n");
-		ret = -1;
-		goto ret;
-	}
-	*/
+	ret = pack_object(sha1, compr_buff, compr_len);
+	
 ret:
-	//if (fd >= 0)
-	//	close(fd);
 
 	if (compr_buff)
 		free(compr_buff);
@@ -134,11 +112,8 @@ ret:
 int read_sha1_file(unsigned char *sha1, char *type, char **out_buff, int *out_size)
 {
 	int ret = 0;
-	int bytes = 0;
-	struct stat stat;
 	char sha1_hex[40+1];
 	//char sha1_check_hex[40+1];
-	char path[PATH_MAX];
 	char *buff = NULL;
 	int buff_len = 0;
 	char *uncompr_buff = NULL;
@@ -146,40 +121,10 @@ int read_sha1_file(unsigned char *sha1, char *type, char **out_buff, int *out_si
 	char hdr_len = 0;
 
 	sha1_to_hex(sha1, sha1_hex);
-	sprintf(path, ".bkp-data/%s", sha1_hex);
 
-	int fd = open(path, O_RDONLY);
-	if (fd < 0) {
-		fprintf(stderr, "Unable to open SHA1 file: %s!\n", sha1_hex);
-		return -1;
-	}
+	unpack_object(sha1, &buff, &buff_len);
 
-	if (fstat(fd, &stat)) {
-		fprintf(stderr, "Cannot stat SHA1 file: %s!\n", sha1_hex);
-		ret = -1;
-		goto end;
-	}
-
-	buff_len = stat.st_size;
-	buff = malloc(buff_len);
-	if (!buff) {
-		ret = -ENOMEM;
-		fprintf(stderr, "Error allocating memory for SHA1 file content: %s\n", sha1_hex);
-		goto end;
-	}
-
-	bytes = read(fd, buff, buff_len);
-
-	/*
-	 * TODO: this condition will need to be replaced with a 
-	 * while(bytes = read()...) just like we did in other places
-	 */
-	if (bytes != buff_len) { 
-		ret = -1;
-		fprintf(stderr, "Error reading from SHA1 file: %s!\n", sha1_hex);
-		goto end;
-	}
-	ret = inflate_sha1_file(buff, bytes, &uncompr_buff, &uncompr_len);
+	ret = inflate_sha1_file(buff, buff_len, &uncompr_buff, &uncompr_len);
 
 	if (ret != 0) {
 		fprintf(stderr, "Error uncompressing sha1 file %s!\n", sha1_hex);
@@ -237,7 +182,6 @@ end:
 	if (uncompr_buff)
 		free(uncompr_buff);
 
-	close(fd);
 	return ret;
 }
 
