@@ -10,24 +10,34 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <time.h>
+#include <errno.h>
 
 #include "pack.h"
 #include "sha1-file.h"
 
 
+struct pack_index *pack_index = NULL;
+
 static int fd = -1;
 size_t fd_offset = 0;
 char pack_fname[PACK_FNAME_LEN+1];
 
-static void add_pack_entry(struct pack_idx_entry *entry);
+static int load_pack_index();
+static int resize_pack_index(struct pack_index *index, size_t size);
+static size_t get_sha1_idx(unsigned char *sha1, size_t size);
+static int add_pack_entry(struct pack_index *index, struct pack_idx_entry *entry);
 static void get_pack_fname();
 static int create_packfile();
+
 
 int pack_object(unsigned char *sha1, const char *obj, size_t size)
 {
 	int ret = 0;
 	size_t written = 0;
 	struct pack_idx_entry *entry = malloc(sizeof(struct pack_idx_entry));
+
+	if (!pack_index)
+		load_pack_index();
 
 	if (!entry) {
 		fprintf(stderr, "Error allocating memory for pack index entry!\n");
@@ -48,7 +58,7 @@ int pack_object(unsigned char *sha1, const char *obj, size_t size)
 	memcpy(entry->packfile, pack_fname, PACK_FNAME_LEN+1);
 	entry->offset = fd_offset;
 	entry->len = size;
-	add_pack_entry(entry);
+	add_pack_entry(pack_index, entry);
 
 	fd_offset += size;
 
@@ -57,6 +67,86 @@ int pack_object(unsigned char *sha1, const char *obj, size_t size)
 	
 end:
 	return ret;
+}
+
+static int load_pack_index()
+{
+	pack_index = malloc(sizeof(struct pack_index));
+	if (!pack_index) {
+		fprintf(stderr, "Error allocating memory for pack index!\n");
+		return -ENOMEM;
+	}
+
+	pack_index->size = 1024;
+	pack_index->entries_len = 0;
+	pack_index->entries = calloc(pack_index->size, sizeof(struct pack_idx_entry *));
+
+	if (!pack_index->entries) {
+		fprintf(stderr, "Error allocating memory for pack index entries!\n");
+		free(pack_index);
+		pack_index = NULL;
+
+		return -ENOMEM;
+	}
+
+	return 0;
+}
+
+static int add_pack_entry(struct pack_index *index, struct pack_idx_entry *entry)
+{
+	if (pack_index->entries_len % pack_index->size == 0) {
+		size_t new_size = pack_index->size * (pack_index->size == 0 ? 1024 : 2);
+		resize_pack_index(pack_index, new_size);
+	}
+
+	size_t idx = get_sha1_idx(entry->sha1, index->size);
+	if (index->entries[idx]) 
+		return 0;
+
+	idx = get_sha1_idx(entry->sha1, pack_index->size);
+
+	index->entries[idx] = entry;
+	index->entries_len++;
+
+	return 0;
+}
+
+static int resize_pack_index(struct pack_index *index, size_t size)
+{
+	int alloc_size = size * sizeof(struct pack_idx_entry *); 
+	struct pack_idx_entry **entries = malloc(alloc_size);
+
+	if (!entries) {
+		fprintf(stderr, "Error allocating memory for new pack entries array!\n");
+		return -ENOMEM;
+	}
+
+	memset(entries, 0, alloc_size);
+
+	for (size_t i=0;i<index->entries_len;i++) {
+		struct pack_idx_entry *e = index->entries[i];
+
+		size_t new_idx = get_sha1_idx(e->sha1, size);
+
+		entries[new_idx] = e;
+	}
+
+	free(index->entries);
+	index->entries = entries;
+	index->size = size;
+
+	return 0;
+}
+
+static size_t get_sha1_idx(unsigned char *sha1, size_t size)
+{
+	size_t h;
+
+	// we copy the first 8 bytes (sizeof size_t)
+	// to h (the first 8 bytes are enough to make
+	// sure we have a unique index)
+	memcpy(&h, sha1, sizeof(size_t));
+	return h % size;	
 }
 
 static int create_packfile()
@@ -83,11 +173,6 @@ static int create_packfile()
 	return 0;
 }
 
-static void add_pack_entry(struct pack_idx_entry *entry)
-{
-
-}
-
 static void get_pack_fname()
 {
 	time_t t = time(NULL);
@@ -96,9 +181,31 @@ static void get_pack_fname()
     strftime(pack_fname, sizeof(pack_fname), "%Y%m%d%H%M%S.pack", &tm);
 }
 
-void update_pack_idx()
+int update_pack_idx()
 {
-	
+	int fd = open(".bkp-data/pack_index.new", O_WRONLY | O_CREAT | O_EXCL, 0666);
+
+	if (fd < 0) {
+		if (errno == EEXIST) 
+			fprintf(stderr, "pack_index.new already exists! Maybe another pack index update in progress?\n");
+
+		return -1;
+	}
+
+	if (pack_index->entries_len > 0) {
+		for (size_t i=0;i<pack_index->size;i++) {
+			struct pack_idx_entry *e = pack_index->entries[i];
+			if (!e)
+				continue;
+
+			write(fd, e, sizeof(struct pack_idx_entry));
+		}
+	}
+
+	close(fd);
+	rename(".bkp-data/pack_index.new", ".bkp-data/pack_index");
+
+	return 0;
 }
 
 void close_last_packfile()
